@@ -1,0 +1,22 @@
+---
+import { orbitById } from '../lib/orbits';
+import { href } from '../lib/util';
+import type { Project } from '../lib/content';
+import Sq from './Sq.astro';
+
+interface Props {
+  project: Project;
+  txCount?: number;
+}
+const { project, txCount = 0 } = Astro.props;
+const { title, summary, orbit, status } = project.data;
+---
+
+<a class="panel mission-card" href={href(`/log/${project.id}/`)}>
+  <h3><Sq orbit={orbit} />{title}</h3>
+  <p>{summary}</p>
+  <span class="foot">
+    <span>{orbitById(orbit).name}{txCount > 0 && ` · ${txCount} TX`}</span>
+    <span class={`status ${status}`}>{status}</span>
+  </span>
+</a>

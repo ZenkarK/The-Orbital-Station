@@ -1,0 +1,46 @@
+---
+import Base from '../../layouts/Base.astro';
+import SectionHead from '../../components/SectionHead.astro';
+import Sq from '../../components/Sq.astro';
+import { ORBITS } from '../../site.config';
+import { getPosts, getProjects, getLibrary } from '../../lib/content';
+import { orbitProximity, phaseLabel } from '../../lib/orbits';
+import { href } from '../../lib/util';
+
+const [posts, projects, library] = await Promise.all([getPosts(), getProjects(), getLibrary()]);
+const rows = ORBITS.map((o) => {
+  const pct = Math.round(orbitProximity(o) * 100);
+  const tx = posts.filter((p) => p.data.orbit === o.id).length;
+  const ms = projects.filter((p) => p.data.orbit === o.id).length;
+  const lib = library.filter((l) => l.data.orbit === o.id).length;
+  return { o, pct, tx, ms, lib };
+});
+---
+
+<Base title="Orbits" description="The six domains of the Orbital Model and everything filed under each.">
+  <div class="page">
+    <SectionHead tag="INDEX" link={{ href: '/manual/', label: 'READ THE MANUAL →' }} />
+    <h1 class="title">The Six Orbits</h1>
+    <p class="sec-sub">Every transmission, mission and library holding belongs to one orbit. Open one to see its whole record.</p>
+    <div class="panel" style="padding:4px 20px">
+      {
+        rows.map(({ o, pct, tx, ms, lib }) => (
+          <a class="orbit-row" href={href(`/orbits/${o.id}/`)}>
+            <Sq orbit={o.id} />
+            <b>{o.name}</b>
+            <span>
+              {o.desc}
+              <br />
+              <small style="font-family:var(--mono);font-size:9.5px;letter-spacing:.16em;color:var(--faint)">
+                {tx} TX · {ms} MISSIONS · {lib} HOLDINGS
+              </small>
+            </span>
+            <span class="pct">
+              {pct}% · {phaseLabel(pct)}
+            </span>
+          </a>
+        ))
+      }
+    </div>
+  </div>
+</Base>

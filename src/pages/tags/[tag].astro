@@ -1,0 +1,29 @@
+---
+import Base from '../../layouts/Base.astro';
+import SectionHead from '../../components/SectionHead.astro';
+import TxItem from '../../components/TxItem.astro';
+import { getTags, type Post } from '../../lib/content';
+import { href } from '../../lib/util';
+
+export async function getStaticPaths() {
+  const tags = await getTags();
+  return tags.map((t) => ({ params: { tag: t.slug }, props: { tag: t.tag, posts: t.posts } }));
+}
+interface Props {
+  tag: string;
+  posts: Post[];
+}
+const { tag, posts } = Astro.props;
+---
+
+<Base title={`#${tag}`} description={`Transmissions tagged #${tag}.`}>
+  <div class="page">
+    <a class="backlink" href={href('/tags/')}>← ALL TAGS</a>
+    <SectionHead tag="TAG" />
+    <h1 class="title">#{tag}</h1>
+    <p class="sec-sub">{posts.length} transmission{posts.length === 1 ? '' : 's'} tagged #{tag}.</p>
+    <div class="tx-list">
+      {posts.map((p) => <TxItem post={p} />)}
+    </div>
+  </div>
+</Base>

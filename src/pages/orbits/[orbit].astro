@@ -1,0 +1,152 @@
+---
+import Base from '../../layouts/Base.astro';
+import SectionHead from '../../components/SectionHead.astro';
+import TxItem from '../../components/TxItem.astro';
+import MissionCard from '../../components/MissionCard.astro';
+import MiniOrrery from '../../components/MiniOrrery.astro';
+import Sq from '../../components/Sq.astro';
+import { ORBITS, type Orbit } from '../../site.config';
+import { getPosts, getProjects, getLibrary, getTrajectories, postsForProject } from '../../lib/content';
+import { orbitProximity, phaseLabel } from '../../lib/orbits';
+import { href } from '../../lib/util';
+
+export function getStaticPaths() {
+  return ORBITS.map((o, i) => ({
+    params: { orbit: o.id },
+    props: { o, prev: ORBITS[(i - 1 + ORBITS.length) % ORBITS.length], next: ORBITS[(i + 1) % ORBITS.length] },
+  }));
+}
+interface Props {
+  o: Orbit;
+  prev: Orbit;
+  next: Orbit;
+}
+const { o, prev, next } = Astro.props;
+
+const [allPosts, allProjects, allLibrary, allTraj] = await Promise.all([
+  getPosts(),
+  getProjects(),
+  getLibrary(),
+  getTrajectories(),
+]);
+const posts = allPosts.filter((p) => p.data.orbit === o.id);
+const projects = allProjects.filter((p) => p.data.orbit === o.id);
+const library = allLibrary.filter((l) => l.data.orbit === o.id);
+const trajectories = allTraj.filter((t) => t.data.orbit === o.id);
+const pct = Math.round(orbitProximity(o) * 100);
+const name = o.name.charAt(0) + o.name.slice(1).toLowerCase();
+const nothing = !posts.length && !projects.length && !library.length && !trajectories.length;
+---
+
+<Base title={`${name} orbit`} description={o.desc}>
+  <div class="page">
+    <a class="backlink" href={href('/orbits/')}>← ALL ORBITS</a>
+    <div class="orbit-hero">
+      <div>
+        <SectionHead tag={`ORBIT · ${o.name}`} />
+        <h1 class="title" style="display:flex;align-items:center;gap:.3em">
+          <span class="sq" style={`background:${o.color};width:.42em;height:.42em`}></span>{name}
+        </h1>
+        <p class="sec-sub">{o.desc}</p>
+        <div class="panel spec" style="max-width:420px">
+          <div class="spec-row"><span>PHASE</span><b>{pct}% · {phaseLabel(pct)}</b></div>
+          <div class="spec-row"><span>CLOCK POSITION</span><b>{o.clock}</b></div>
+          <div class="spec-row"><span>TRANSMISSIONS · MISSIONS · HOLDINGS</span><b>{posts.length} · {projects.length} · {library.length}</b></div>
+        </div>
+      </div>
+      <div class="panel reg mini-orrery">
+        <MiniOrrery focus={o.id} />
+      </div>
+    </div>
+
+    {
+      posts.length > 0 && (
+        <section class="block" aria-labelledby="o-tx">
+          <SectionHead
+            tag="TRANSMISSIONS"
+            link={{ href: `/transmissions/?orbit=${o.id}`, label: 'FILTERED LIST →' }}
+          />
+          <h2 id="o-tx" class="sr-only">Transmissions</h2>
+          <div class="tx-list">
+            {posts.map((p) => (
+              <TxItem post={p} />
+            ))}
+          </div>
+        </section>
+      )
+    }
+
+    {
+      projects.length > 0 && (
+        <section class="block" aria-labelledby="o-ms">
+          <SectionHead tag="MISSIONS" />
+          <h2 id="o-ms" class="sr-only">Missions</h2>
+          <div class="mission-cards">
+            {projects.map((p) => (
+              <MissionCard project={p} txCount={postsForProject(allPosts, p.id).length} />
+            ))}
+          </div>
+        </section>
+      )
+    }
+
+    {
+      trajectories.length > 0 && (
+        <section class="block" aria-labelledby="o-tr">
+          <SectionHead tag="TRAJECTORIES" link={{ href: '/trajectories/', label: 'VISION BOARD →' }} />
+          <h2 id="o-tr" class="sr-only">Trajectories</h2>
+          <div class="traj-grid">
+            {trajectories.map((t) => (
+              <article class:list={['panel traj', { reached: t.data.reached }]} style="min-height:0">
+                {t.data.reached && <span class="stamp">REACHED</span>}
+                <h3>{t.data.title}</h3>
+                <p>{t.data.note}</p>
+                <div class="traj-foot">{t.data.horizon}</div>
+              </article>
+            ))}
+          </div>
+        </section>
+      )
+    }
+
+    {
+      library.length > 0 && (
+        <section class="block" aria-labelledby="o-lib">
+          <SectionHead tag="LIBRARY" link={{ href: '/library/', label: 'FULL LIBRARY →' }} />
+          <h2 id="o-lib" class="sr-only">Library holdings</h2>
+          <div class="panel">
+            {library.map((b) => (
+              <div class="lib" style={`border-left-color:${o.color};grid-template-columns:minmax(0,1fr) 118px`}>
+                <div>
+                  <div class="lib-line1">
+                    <span class="lib-type">{b.data.type}</span>
+                    <span class="lib-title">
+                      {b.data.link ? (
+                        <a href={b.data.link} target="_blank" rel="noopener noreferrer">
+                          {b.data.title}
+                          <span class="ext" aria-label="(opens in a new tab)">↗</span>
+                        </a>
+                      ) : (
+                        b.data.title
+                      )}
+                    </span>
+                    {b.data.author && <span class="lib-auth">{b.data.author}</span>}
+                  </div>
+                  {b.data.note && <p class="lib-note">{b.data.note}</p>}
+                </div>
+                <span class={`shelf ${b.data.shelf}`}>{b.data.shelf}</span>
+              </div>
+            ))}
+          </div>
+        </section>
+      )
+    }
+
+    {nothing && <p class="empty block">NOTHING FILED IN THIS ORBIT YET — IT'S COASTING ON THE FAR SIDE.</p>}
+
+    <nav class="orbit-nav" aria-label="Other orbits">
+      <a href={href(`/orbits/${prev.id}/`)}>← <Sq orbit={prev.id} />{prev.name}</a>
+      <a href={href(`/orbits/${next.id}/`)}><Sq orbit={next.id} />{next.name} →</a>
+    </nav>
+  </div>
+</Base>

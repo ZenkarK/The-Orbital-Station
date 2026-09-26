@@ -1,0 +1,17 @@
+---
+import { href as h } from '../lib/util';
+
+interface Props {
+  tag: string;
+  /** Optional right-hand link, e.g. "ALL TRANSMISSIONS →". */
+  link?: { href: string; label: string };
+}
+const { tag, link } = Astro.props;
+---
+
+<div class="sec-head">
+  <span class="sec-tag">{tag}</span>
+  <span class="sec-rule"></span>
+  <slot />
+  {link && <a class="sec-link" href={h(link.href)}>{link.label}</a>}
+</div>

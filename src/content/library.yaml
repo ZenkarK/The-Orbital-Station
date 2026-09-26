@@ -1,0 +1,48 @@
+# THE LIBRARY — books, papers, essays, tools that shape how this station thinks.
+# Listed in the order they arrived (newest at the bottom). Each needs a unique `id`.
+#
+#   type:  BOOK | PAPER | ESSAY | TOOL | FILM | COURSE | OTHER
+#   shelf: READING | QUEUE | ABSORBED | REFERENCE
+#   orbit: systems | markets | craft | astro | venture | words
+#   link:  optional, must start with https://
+
+- id: design-of-everyday-things
+  type: BOOK
+  title: The Design of Everyday Things
+  author: Don Norman
+  orbit: craft
+  shelf: ABSORBED
+  note: Why good systems disappear and bad ones shout. Half my calibration instincts trace back here.
+
+- id: reminiscences-of-a-stock-operator
+  type: BOOK
+  title: Reminiscences of a Stock Operator
+  author: Edwin Lefèvre
+  orbit: markets
+  shelf: ABSORBED
+  note: A century old and still the best risk-management document ever disguised as a biography.
+
+- id: blandford-konigl-1979
+  type: PAPER
+  title: Relativistic jets as compact radio sources
+  author: Blandford & Königl, 1979
+  orbit: astro
+  shelf: REFERENCE
+  link: https://ui.adsabs.harvard.edu/abs/1979ApJ...232...34B/abstract
+  note: The model my thesis argued with. Kept close, the way you keep an old sparring partner.
+
+- id: obsidian
+  type: TOOL
+  title: Obsidian
+  orbit: systems
+  shelf: REFERENCE
+  link: https://obsidian.md
+  note: The station's ground archive — every mission here started as a note there.
+
+- id: in-praise-of-idleness
+  type: ESSAY
+  title: In Praise of Idleness
+  author: Bertrand Russell
+  orbit: words
+  shelf: QUEUE
+  note: Queued for the next far-side season of Craft. Aliveness deserves a defense of leisure.

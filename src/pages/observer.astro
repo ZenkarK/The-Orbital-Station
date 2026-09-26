@@ -1,0 +1,62 @@
+---
+import Base from '../layouts/Base.astro';
+import SectionHead from '../components/SectionHead.astro';
+import Channels from '../components/Channels.astro';
+import { SITE, PHASE_LOGGED } from '../site.config';
+import { getPosts, getProjects } from '../lib/content';
+import { rankedOrbits } from '../lib/orbits';
+import { href } from '../lib/util';
+
+const [posts, projects] = await Promise.all([getPosts(), getProjects()]);
+const phase = rankedOrbits()
+  .slice(0, 2)
+  .map((r) => r.orbit.name)
+  .join(' · ');
+---
+
+<Base title="Observer" description={`Who keeps this station — ${SITE.author}, systems engineer in medical imaging and astrophysicist by training.`}>
+  <div class="page">
+    <SectionHead tag="SEC. E" />
+    <h1 class="title">The Observer</h1>
+    <p class="sec-sub">Who keeps this station, and how to reach it.</p>
+    <div class="obs-grid">
+      <div class="obs-bio">
+        <p>
+          I'm {SITE.author} — a systems engineer in medical imaging by day, an astrophysicist by training, and the
+          sole operator of this station.
+        </p>
+        <p>
+          The through-line has always been the same: complex systems, taken seriously. CT scanners, trading engines,
+          a week of meals, a year of a life — they all reward the same habits of architecture, instrumentation, and
+          honest telemetry. This site applies those habits to the one system I actually run end to end.
+        </p>
+        <p>
+          Everything here is written by hand in plain text and built into a static site: no tracking, no ads, no
+          algorithm. If the orrery on the <a href={href('/')}>Bridge</a> says a domain is near, that's genuinely where
+          my hours are going. If a mission gets scrubbed, it stays in the <a href={href('/log/')}>Flight Log</a>.
+        </p>
+      </div>
+      <div>
+        <div class="panel reg spec">
+          <h2>CURRENT PHASE</h2>
+          <div class="spec-row"><span>RUNNING NEAR</span><b>{phase}</b></div>
+          <div class="spec-row"><span>MISSIONS ACTIVE</span><b>{projects.filter((p) => p.data.status === 'ACTIVE').length}</b></div>
+          <div class="spec-row"><span>TRANSMISSIONS SENT</span><b>{posts.length}</b></div>
+          <div class="spec-row"><span>PHASE LOGGED</span><b>{PHASE_LOGGED.replaceAll('-', '.')}</b></div>
+        </div>
+        <div class="panel reg spec">
+          <h2>STATION DATA</h2>
+          <div class="spec-row"><span>OPERATOR</span><b>{SITE.author.toUpperCase()}</b></div>
+          <div class="spec-row"><span>LATITUDE</span><b>{SITE.latitude}</b></div>
+          <div class="spec-row"><span>TRAINING</span><b>ASTROPHYSICS / AEROSPACE</b></div>
+          <div class="spec-row"><span>DAY JOB</span><b>MEDICAL IMAGING SYSTEMS</b></div>
+          <div class="spec-row"><span>TYPEFACES</span><b>ARCHIVO · SPACE MONO</b></div>
+        </div>
+        <div class="panel reg spec">
+          <h2>CHANNELS</h2>
+          <Channels />
+        </div>
+      </div>
+    </div>
+  </div>
+</Base>

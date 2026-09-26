@@ -1,0 +1,47 @@
+---
+import Base from '../../layouts/Base.astro';
+import SectionHead from '../../components/SectionHead.astro';
+import Sq from '../../components/Sq.astro';
+import { getPosts, getProjects, postsForProject } from '../../lib/content';
+import { href, two } from '../../lib/util';
+
+const [projects, posts] = await Promise.all([getProjects(), getPosts()]);
+---
+
+<Base title="Flight Log" description="The project diary — every build gets a line, including the scrubs.">
+  <div class="page">
+    <SectionHead tag="SEC. B" />
+    <h1 class="title">Flight Log</h1>
+    <p class="sec-sub">
+      The project diary. Every build gets a line — including the scrubs, because the record is only useful if it's
+      honest. Open a mission for its brief and every transmission filed under it.
+    </p>
+    <div class="panel">
+      <div class="f-head" aria-hidden="true"><span>NO.</span><span>MISSION</span><span>SUMMARY</span><span>STATUS</span></div>
+      {
+        projects.length ? (
+          projects.map((p, i) => {
+            const tx = postsForProject(posts, p.id).length;
+            return (
+              <a class="flight" href={href(`/log/${p.id}/`)}>
+                <span class="f-no">{two(i + 1)}</span>
+                <span class="f-name">
+                  <Sq orbit={p.data.orbit} />
+                  {p.data.title}
+                  {p.data.draft && <span class="draft-badge">DRAFT</span>}
+                </span>
+                <span class="f-sum">
+                  {p.data.summary}
+                  {tx > 0 && <small>{tx} TRANSMISSION{tx === 1 ? '' : 'S'} FILED</small>}
+                </span>
+                <span class={`status ${p.data.status}`}>{p.data.status}</span>
+              </a>
+            );
+          })
+        ) : (
+          <p class="empty" style="border:none">PAD IS CLEAR — NO MISSIONS LOGGED YET.</p>
+        )
+      }
+    </div>
+  </div>
+</Base>

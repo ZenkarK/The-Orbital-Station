@@ -1,0 +1,40 @@
+---
+import Base from '../layouts/Base.astro';
+import SectionHead from '../components/SectionHead.astro';
+import SearchBox from '../components/SearchBox.astro';
+import { href } from '../lib/util';
+---
+
+<Base title="Search" description="Search every transmission, mission, library holding and trajectory on the station.">
+  <div class="page search-page">
+    <SectionHead tag="INDEX" />
+    <h1 class="title">Search</h1>
+    <p class="sec-sub">
+      Every transmission, mission, library holding and trajectory. Tip: press <kbd>/</kbd> anywhere on the site to
+      search without leaving the page.
+    </p>
+    <SearchBox id="page" />
+    <noscript>
+      <p class="empty" style="margin-top:20px">
+        Search needs JavaScript. Browse <a href={href('/transmissions/')}>Transmissions</a> or
+        <a href={href('/tags/')}>Tags</a> instead.
+      </p>
+    </noscript>
+  </div>
+</Base>
+
+<script>
+  import { mountSearch } from '../scripts/search';
+  const box = document.querySelector<HTMLElement>('.search-page [data-search-box]');
+  if (box) {
+    const q = new URLSearchParams(location.search).get('q');
+    const input = box.querySelector<HTMLInputElement>('[data-search-input]')!;
+    if (q) input.value = q;
+    const s = mountSearch(box);
+    s.focus();
+    input.addEventListener('input', () => {
+      const v = input.value.trim();
+      history.replaceState(null, '', v ? `?q=${encodeURIComponent(v)}` : location.pathname);
+    });
+  }
+</script>

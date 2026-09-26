@@ -1,0 +1,29 @@
+---
+import Base from '../../layouts/Base.astro';
+import SectionHead from '../../components/SectionHead.astro';
+import { getTags } from '../../lib/content';
+import { href } from '../../lib/util';
+
+const tags = await getTags();
+---
+
+<Base title="Tags" description="Every tag used across the station's transmissions.">
+  <div class="page">
+    <SectionHead tag="INDEX" link={{ href: '/transmissions/', label: 'ALL TRANSMISSIONS →' }} />
+    <h1 class="title">Tags</h1>
+    <p class="sec-sub">Cross-references between transmissions, whatever orbit they were sent from.</p>
+    {
+      tags.length ? (
+        <div class="tag-cloud">
+          {tags.map((t) => (
+            <a class="chip" href={href(`/tags/${t.slug}/`)}>
+              #{t.tag} <span class="n">{t.posts.length}</span>
+            </a>
+          ))}
+        </div>
+      ) : (
+        <p class="empty">NO TAGS YET.</p>
+      )
+    }
+  </div>
+</Base>

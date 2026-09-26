@@ -1,0 +1,32 @@
+---
+/** One transmission in a list. Carries data-* hooks for the client filters. */
+import { POST_KINDS } from '../site.config';
+import { orbitById } from '../lib/orbits';
+import { href, stationDate, isoDate, readingMinutes } from '../lib/util';
+import type { Post } from '../lib/content';
+import Sq from './Sq.astro';
+
+interface Props {
+  post: Post;
+  headingLevel?: 'h2' | 'h3';
+}
+const { post, headingLevel = 'h3' } = Astro.props;
+const { title, date, summary, orbit, kind, draft } = post.data;
+const H = headingLevel;
+---
+
+<article class="panel tx" data-orbit={orbit} data-kind={kind}>
+  <a class="tx-head" href={href(`/transmissions/${post.id}/`)}>
+    <time class="tx-date" datetime={isoDate(date)}>{stationDate(date)}</time>
+    <H class="tx-title">
+      <Sq orbit={orbit} />{title}{draft && <span class="draft-badge">DRAFT</span>}
+    </H>
+    <p class="tx-excerpt">{summary}</p>
+    <span class="tx-meta">
+      <span>{orbitById(orbit).name}</span>
+      <span>{POST_KINDS[kind]}</span>
+      <span>{readingMinutes(post.body)} MIN</span>
+      <span class="tx-read" aria-hidden="true">READ →</span>
+    </span>
+  </a>
+</article>

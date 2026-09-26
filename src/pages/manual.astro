@@ -1,0 +1,93 @@
+---
+import Base from '../layouts/Base.astro';
+import SectionHead from '../components/SectionHead.astro';
+import Sq from '../components/Sq.astro';
+import { ORBITS, SITE } from '../site.config';
+import { orbitProximity } from '../lib/orbits';
+import { href } from '../lib/util';
+
+const constants = SITE.constants.map((c) => c.toLowerCase());
+---
+
+<Base title="The Manual" description="The Orbital Model, written down — the operating theory behind everything else on this station.">
+  <div class="page">
+    <SectionHead tag="DOC. 0" />
+    <h1 class="title">The Manual</h1>
+    <p class="sec-sub">The Orbital Model, written down — the operating theory behind everything else on this station.</p>
+
+    <section class="man-sec">
+      <h2 class="man-label">1.0 · PREMISE</h2>
+      <div class="man-body">
+        <p>
+          Planets do not multitask. Each holds one path at one speed, and the system works because nothing tries to
+          be everywhere at once.
+        </p>
+        <p>
+          Most advice about a full life asks for <strong>balance</strong> — equal weight to everything, every week. I
+          have never seen balance survive contact with an actual week. The Orbital Model replaces it with
+          <strong>phase</strong>: every domain stays in the system permanently, but only one or two run close at a time.
+        </p>
+      </div>
+    </section>
+
+    <section class="man-sec">
+      <h2 class="man-label">2.0 · CENTER OF MASS</h2>
+      <div class="man-body">
+        <p>
+          Orbits need something heavy to bend around. The center here is not a job, a project, or a person — those
+          are all bodies in motion themselves.
+        </p>
+        <p>
+          The center is a small set of values with enough mass to hold everything else:
+          <strong>{constants.slice(0, -1).join(', ')}, {constants.at(-1)}</strong>. Decisions get made by asking which
+          option falls toward that mass.
+        </p>
+      </div>
+    </section>
+
+    <section class="man-sec">
+      <h2 class="man-label">3.0 · PHASE DISCIPLINE</h2>
+      <div class="man-body">
+        <p>
+          Near means this is what the season is for: real hours, real attention, visible progress. Far does not mean
+          abandoned — it means coasting on maintenance energy, waiting for its turn to come back around.
+        </p>
+        <p>
+          The discipline is refusing to feel guilty about the far side of an orbit. A domain at apogee is not
+          neglected. It is <strong>scheduled</strong>.
+        </p>
+      </div>
+    </section>
+
+    <section class="man-sec">
+      <h2 class="man-label">4.0 · THE SIX ORBITS</h2>
+      <div class="man-body" style="max-width:none">
+        {
+          ORBITS.map((o) => (
+            <a class="orbit-row" href={href(`/orbits/${o.id}/`)}>
+              <Sq orbit={o.id} />
+              <b>{o.name}</b>
+              <span>{o.desc}</span>
+              <span class="pct">{Math.round(orbitProximity(o) * 100)}% NEAR</span>
+            </a>
+          ))
+        }
+      </div>
+    </section>
+
+    <section class="man-sec">
+      <h2 class="man-label">5.0 · FAILURE MODES</h2>
+      <div class="man-body">
+        <p>
+          Two ways the system dies. <strong>Collision</strong>: one domain gets so heavy it drags the others off their
+          tracks — usually work, sometimes a market. <strong>Drift</strong>: the center loses mass, and everything
+          wanders outward into low-energy loops that no longer return.
+        </p>
+        <p>
+          The orrery on the <a href={href('/')}>Bridge</a> exists to catch both early. If the chart stops matching the
+          truth, the chart is the alarm.
+        </p>
+      </div>
+    </section>
+  </div>
+</Base>

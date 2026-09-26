@@ -1,0 +1,85 @@
+---
+import { render } from 'astro:content';
+import Base from '../../layouts/Base.astro';
+import SectionHead from '../../components/SectionHead.astro';
+import TxItem from '../../components/TxItem.astro';
+import Sq from '../../components/Sq.astro';
+import { getPosts, getProjects, postsForProject, type Post, type Project } from '../../lib/content';
+import { orbitById } from '../../lib/orbits';
+import { href, stationDate, two } from '../../lib/util';
+
+export async function getStaticPaths() {
+  const [projects, posts] = await Promise.all([getProjects(), getPosts()]);
+  return projects.map((project, i) => ({
+    params: { slug: project.id },
+    props: { project, no: i + 1, transmissions: postsForProject(posts, project.id) },
+  }));
+}
+
+interface Props {
+  project: Project;
+  no: number;
+  transmissions: Post[];
+}
+const { project, no, transmissions } = Astro.props;
+const { title, summary, orbit, status, started, ended, stack, repo, demo, draft } = project.data;
+const { Content } = await render(project);
+const hasBrief = Boolean(project.body?.trim());
+const o = orbitById(orbit);
+const host = (u: string) => new URL(u).host.replace(/^www\./, '').toUpperCase();
+---
+
+<Base title={title} description={summary} noindex={draft}>
+  <div class="page">
+    <a class="backlink" href={href('/log/')}>← FLIGHT LOG</a>
+    <SectionHead tag={`MISSION ${two(no)}`}>
+      <span class={`status ${status}`}>{status}</span>
+    </SectionHead>
+    <h1 class="title">{title}</h1>
+    <p class="sec-sub" style="margin-bottom:0">{summary}</p>
+
+    <div class="detail-grid">
+      <div>
+        {
+          hasBrief ? (
+            <div class="prose">
+              <Content />
+            </div>
+          ) : (
+            <p class="empty">NO MISSION BRIEF FILED YET — THE LOG ENTRY ABOVE IS THE WHOLE RECORD FOR NOW.</p>
+          )
+        }
+      </div>
+      <aside class="panel reg spec" aria-label="Mission data">
+        <h2>MISSION DATA</h2>
+        <div class="spec-row">
+          <span>ORBIT</span>
+          <b><a href={href(`/orbits/${orbit}/`)} style="text-decoration:none"><Sq orbit={orbit} /> {o.name}</a></b>
+        </div>
+        <div class="spec-row"><span>STATUS</span><b>{status}</b></div>
+        {started && <div class="spec-row"><span>LAUNCHED</span><b>{stationDate(started)}</b></div>}
+        {ended && <div class="spec-row"><span>{status === 'SCRUBBED' ? 'SCRUBBED' : 'LANDED'}</span><b>{stationDate(ended)}</b></div>}
+        {stack.length > 0 && <div class="spec-row"><span>STACK</span><b>{stack.join(' · ').toUpperCase()}</b></div>}
+        <div class="spec-row"><span>TRANSMISSIONS</span><b>{transmissions.length}</b></div>
+        {repo && <div class="spec-row"><span>SOURCE</span><b><a href={repo} target="_blank" rel="noopener">{host(repo)} ↗</a></b></div>}
+        {demo && <div class="spec-row"><span>LIVE</span><b><a href={demo} target="_blank" rel="noopener">{host(demo)} ↗</a></b></div>}
+      </aside>
+    </div>
+
+    <section class="block" aria-labelledby="mtx">
+      <SectionHead tag="MISSION TRANSMISSIONS" />
+      <h2 id="mtx" class="sr-only">Transmissions filed under {title}</h2>
+      {
+        transmissions.length ? (
+          <div class="tx-list">
+            {transmissions.map((p) => (
+              <TxItem post={p} />
+            ))}
+          </div>
+        ) : (
+          <p class="empty">NO TRANSMISSIONS FILED UNDER THIS MISSION YET — BUILD LOGS WILL LAND HERE.</p>
+        )
+      }
+    </section>
+  </div>
+</Base>

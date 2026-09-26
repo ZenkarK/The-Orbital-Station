@@ -1,0 +1,1241 @@
+<!doctype html>
+<!--
+  ORBITAL STATION · REV 4 — personal site of Zenkar
+  Self-contained single file. No build step, no server, no dependencies.
+
+  PAGES (hash-routed, works on any static host, incl. file://)
+    #/               BRIDGE        orrery control + system state + digest
+    #/manual         MANUAL        the Orbital Model, written out
+    #/trajectories   TRAJECTORIES  vision board
+    #/log            FLIGHT LOG    project diary
+    #/transmissions  TRANSMISSIONS blog index → #/transmissions/<id> per post
+    #/library        LIBRARY       books, papers, essays, tools
+    #/observer       OBSERVER      about + current phase + channels
+
+  HOSTING
+    · Rename to index.html and drop into any static host:
+      GitHub Pages, Netlify Drop, Cloudflare Pages, an S3 bucket.
+    · Browser edits persist via localStorage on that device.
+    · CONSOLE → EXPORT JSON backs up content; IMPORT JSON restores it.
+      To ship content to all visitors, paste exported JSON over SEED below.
+    · Replace the placeholder links in the CHANNELS block (search "CHANNELS").
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Orbital Station — Zenkar</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,300..900&family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#23262D;            /* night-ops graphite — dark, not black */
+  --panel:#2C3039;         /* faceplate */
+  --panel-2:#343945;       /* hover */
+  --paper:#E9E5DA;         /* warm instrument white */
+  --dim:rgba(233,229,218,.62);
+  --faint:rgba(233,229,218,.36);
+  --line:rgba(233,229,218,.16);
+  --edge:rgba(233,229,218,.88);
+  --amber:#DFA340;         /* night-panel lighting — primary accent */
+  --caution:#E0592B;       /* live + caution only */
+  --c-systems:#7FA6C9; --c-markets:#C9A24B; --c-craft:#C97F5F;
+  --c-astro:#9D8FD0;  --c-venture:#D97A45; --c-words:#8FAE8B;
+  --mono:'Space Mono',ui-monospace,Menlo,monospace;
+  --sans:'Archivo',system-ui,Helvetica,Arial,sans-serif;
+  --maxw:1140px;
+  --shadow:4px 4px 0 rgba(0,0,0,.5);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{
+  background:var(--bg);color:var(--paper);
+  font-family:var(--sans);font-size:16.5px;line-height:1.55;
+  -webkit-font-smoothing:antialiased;
+}
+::selection{background:var(--amber);color:var(--bg)}
+a{color:inherit}
+button{font-family:var(--mono);cursor:pointer;background:none;border:none;color:inherit;font-size:11px;letter-spacing:.14em}
+:focus-visible{outline:2px solid var(--amber);outline-offset:2px}
+h1,h2,h3{font-weight:800;letter-spacing:-.01em}
+.grain{
+  position:fixed;inset:0;pointer-events:none;z-index:60;opacity:.045;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.6'/%3E%3C/svg%3E");
+}
+
+/* ---------- chrome ---------- */
+.chrome{position:sticky;top:0;z-index:50;background:var(--bg);border-bottom:2px solid var(--edge)}
+.bar{
+  display:flex;align-items:center;justify-content:space-between;gap:12px;
+  padding:12px clamp(14px,3.5vw,36px);
+}
+.bar-id{display:flex;align-items:baseline;gap:10px;min-width:0}
+.bar-id .who{font-weight:800;font-stretch:110%;font-size:15px;letter-spacing:.02em;text-transform:uppercase}
+.bar-id .doc{font-family:var(--mono);font-size:10px;color:var(--faint);white-space:nowrap}
+.bar-right{display:flex;align-items:center;gap:12px}
+.readout{font-family:var(--mono);font-size:10px;color:var(--dim);white-space:nowrap}
+.live{display:flex;align-items:center;gap:6px;font-family:var(--mono);font-size:10px;color:var(--dim)}
+.live i{width:8px;height:8px;background:var(--caution);display:inline-block;animation:blink 2s steps(2,jump-none) infinite}
+@keyframes blink{50%{opacity:.15}}
+.btn{
+  border:2px solid var(--edge);padding:8px 13px;background:var(--panel);
+  box-shadow:var(--shadow);transition:transform .08s,box-shadow .08s;color:var(--paper);
+}
+.btn:hover{transform:translate(1px,1px);box-shadow:2px 2px 0 rgba(0,0,0,.5)}
+.btn:active{transform:translate(4px,4px);box-shadow:none}
+.btn.on{background:var(--amber);border-color:var(--amber);color:var(--bg)}
+.btn.warn{border-color:var(--caution);color:var(--caution)}
+.nav{
+  display:flex;gap:2px;overflow-x:auto;scrollbar-width:none;
+  padding:0 clamp(14px,3.5vw,36px);border-top:1px solid var(--line);
+}
+.nav::-webkit-scrollbar{display:none}
+.nav a{
+  font-family:var(--mono);font-size:10px;letter-spacing:.18em;text-decoration:none;
+  padding:10px 13px;color:var(--dim);white-space:nowrap;border-bottom:3px solid transparent;
+}
+.nav a:hover{color:var(--paper)}
+.nav a.active{color:var(--amber);border-bottom-color:var(--amber)}
+@media(max-width:600px){.bar-id .doc,.readout .utc{display:none}}
+
+/* ---------- layout ---------- */
+main{max-width:var(--maxw);margin:0 auto;padding:0 clamp(14px,3.5vw,36px);min-height:60vh}
+.page{padding:clamp(36px,6vw,72px) 0 clamp(48px,8vw,96px)}
+.sec-head{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:8px}
+.sec-tag{
+  font-family:var(--mono);font-size:10px;letter-spacing:.2em;
+  background:var(--amber);color:var(--bg);padding:4px 9px;font-weight:700;
+}
+.sec-rule{flex:1;height:2px;background:var(--edge);min-width:30px;opacity:.7}
+h2{font-size:clamp(30px,5vw,52px);text-transform:uppercase;font-stretch:105%;line-height:1;margin:10px 0 8px}
+.sec-sub{color:var(--dim);max-width:58ch;margin-bottom:32px}
+.only-edit{display:none}
+body.edit .only-edit{display:inline-flex}
+.filter-chip{
+  display:none;align-items:center;gap:8px;
+  font-family:var(--mono);font-size:10px;letter-spacing:.12em;
+  border:2px solid var(--amber);color:var(--amber);padding:4px 9px;background:var(--panel);
+}
+.filter-chip.show{display:inline-flex}
+.filter-chip button{color:var(--amber)}
+.filter-chip button:hover{color:var(--caution)}
+.dimmed{opacity:.22}
+.item{transition:opacity .25s}
+.panel{position:relative;background:var(--panel);border:2px solid var(--edge);box-shadow:var(--shadow)}
+.reg::before,.reg::after{
+  content:'';position:absolute;width:10px;height:10px;pointer-events:none;
+  border:0 solid var(--paper);
+}
+.reg::before{top:6px;left:6px;border-top-width:2px;border-left-width:2px}
+.reg::after{bottom:6px;right:6px;border-bottom-width:2px;border-right-width:2px}
+.eyebrow{font-family:var(--mono);font-size:10.5px;letter-spacing:.22em;color:var(--faint);display:block;margin-bottom:20px}
+.backlink{
+  font-family:var(--mono);font-size:10px;letter-spacing:.16em;text-decoration:none;
+  color:var(--dim);display:inline-block;margin-bottom:26px;
+}
+.backlink:hover{color:var(--amber)}
+
+/* ---------- bridge ---------- */
+h1{
+  font-size:clamp(42px,8.8vw,100px);
+  line-height:.92;text-transform:uppercase;font-stretch:108%;
+  margin-bottom:24px;
+}
+h1 .ghost{display:block;color:transparent;-webkit-text-stroke:1.5px var(--paper)}
+.lede{max-width:52ch;color:var(--dim);font-size:18px;margin-bottom:20px}
+.constants{
+  font-family:var(--mono);font-size:10.5px;letter-spacing:.14em;
+  display:flex;flex-wrap:wrap;gap:6px 0;align-items:center;color:var(--dim);
+}
+.constants b{font-weight:700;color:var(--paper)}
+.constants span{padding:0 10px;border-left:2px solid var(--faint)}
+.constants span:first-of-type{border-left:none;padding-left:0}
+.orrery-panel{margin-top:clamp(30px,4vw,48px);padding:clamp(16px,3vw,30px)}
+.orrery-grid{display:grid;grid-template-columns:minmax(0,7fr) minmax(240px,4fr);gap:clamp(18px,3vw,34px);align-items:center}
+@media(max-width:860px){.orrery-grid{grid-template-columns:1fr}}
+.orrery-hint{
+  font-family:var(--mono);font-size:9.5px;letter-spacing:.18em;color:var(--faint);
+  display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;
+  border-bottom:2px solid var(--edge);padding-bottom:10px;margin-bottom:14px;
+}
+#orrery{width:100%;max-width:640px;display:block;margin:0 auto;touch-action:none}
+#orrery .track{fill:none;stroke-opacity:.22;stroke-dasharray:2 5}
+#orrery .track.sel{stroke-opacity:.95;stroke-dasharray:none;stroke-width:1.6}
+#orrery .body{cursor:grab;stroke:var(--bg);stroke-width:2}
+#orrery .body:active{cursor:grabbing}
+#orrery .blabel{font-family:'Space Mono',monospace;font-size:10.5px;letter-spacing:.08em;fill:var(--paper);pointer-events:none}
+#orrery .blabel.dim{fill:var(--faint)}
+#orrery .apsis{font-family:'Space Mono',monospace;font-size:9px;letter-spacing:.2em;fill:var(--faint)}
+.state-list{display:flex;flex-direction:column;border:2px solid var(--edge);background:var(--panel)}
+.state-row{
+  display:grid;grid-template-columns:14px 1fr auto;align-items:center;gap:10px;
+  padding:10px 12px;border-bottom:1px solid var(--line);
+  font-family:var(--mono);font-size:11px;cursor:pointer;text-align:left;letter-spacing:.06em;color:var(--paper);
+}
+.state-row:last-child{border-bottom:none}
+.state-row:hover{background:var(--panel-2)}
+.state-row.sel{background:var(--amber);color:var(--bg)}
+.state-row .sq{width:9px;height:9px}
+.state-row .bar-wrap{position:relative;height:5px;background:rgba(0,0,0,.35);margin-top:5px;display:block}
+.state-row .bar-fill{position:absolute;inset:0 auto 0 0;background:currentColor}
+.state-row .pct{font-weight:700}
+.state-caption{margin-top:14px;font-size:14.5px;color:var(--dim);min-height:4.2em}
+.state-caption b{font-family:var(--mono);font-size:10px;letter-spacing:.18em;color:var(--amber)}
+.digest{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:16px;margin-top:26px}
+.digest .panel{padding:16px 18px}
+.digest .d-tag{font-family:var(--mono);font-size:9px;letter-spacing:.2em;color:var(--faint);display:block;margin-bottom:9px}
+.digest .d-big{font-family:var(--mono);font-weight:700;font-size:26px;line-height:1;color:var(--amber)}
+.digest .d-sub{font-size:13.5px;color:var(--dim);margin-top:7px}
+.digest a.panel{text-decoration:none;display:block}
+.digest a.panel:hover{background:var(--panel-2)}
+.digest .d-title{font-weight:800;text-transform:uppercase;font-size:16px;font-stretch:104%;line-height:1.15}
+
+/* ---------- manual ---------- */
+.man-sec{
+  display:grid;grid-template-columns:180px 1fr;gap:20px;
+  padding:26px 0;border-bottom:1px solid var(--line);
+}
+.man-sec:last-of-type{border-bottom:none}
+.man-label{font-family:var(--mono);font-size:10px;letter-spacing:.2em;color:var(--amber);padding-top:6px}
+.man-body{max-width:62ch;color:var(--dim)}
+.man-body p{margin-bottom:13px}
+.man-body p:first-child{color:var(--paper)}
+.man-body strong{color:var(--paper);font-weight:700}
+.orbit-row{
+  display:grid;grid-template-columns:14px 110px 1fr;gap:12px;align-items:baseline;
+  padding:11px 0;border-bottom:1px solid var(--line);font-size:15px;color:var(--dim);
+}
+.orbit-row:last-child{border-bottom:none}
+.orbit-row b{font-family:var(--mono);font-size:11px;letter-spacing:.12em;color:var(--paper)}
+@media(max-width:640px){
+  .man-sec{grid-template-columns:1fr;gap:8px}
+  .orbit-row{grid-template-columns:14px 1fr}
+  .orbit-row span:last-child{grid-column:2}
+}
+
+/* ---------- trajectories ---------- */
+.traj-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:18px}
+.traj{padding:20px 20px 18px;display:flex;flex-direction:column;gap:10px;min-height:200px}
+.traj-num{
+  font-family:var(--mono);font-weight:700;font-size:34px;line-height:1;
+  color:transparent;-webkit-text-stroke:1.2px var(--paper);opacity:.8;
+}
+.traj h3{font-size:22px;line-height:1.15;text-transform:uppercase;font-stretch:104%}
+.traj p{color:var(--dim);font-size:15px;flex:1}
+.traj-foot{
+  display:flex;align-items:center;gap:9px;
+  font-family:var(--mono);font-size:9.5px;letter-spacing:.16em;color:var(--dim);
+  border-top:1px solid var(--line);padding-top:10px;
+}
+.sq{width:9px;height:9px;flex:none;display:inline-block}
+.item-tools{display:none;position:absolute;top:10px;right:10px;gap:6px}
+body.edit .item-tools{display:flex}
+.tool{border:1.5px solid var(--edge);padding:4px 8px;font-size:9px;background:var(--panel);color:var(--paper)}
+.tool:hover{background:var(--paper);color:var(--bg)}
+.tool.confirm{border-color:var(--caution);color:var(--caution);background:var(--panel)}
+.add-btn{
+  align-items:center;font-size:10.5px;border:2px dashed var(--faint);
+  padding:8px 13px;background:transparent;color:var(--dim);box-shadow:none;
+}
+.add-btn:hover{border-color:var(--amber);color:var(--amber);transform:none}
+.empty{
+  grid-column:1/-1;border:2px dashed var(--faint);padding:40px 18px;
+  text-align:center;color:var(--faint);font-family:var(--mono);font-size:12px;letter-spacing:.08em;
+}
+
+/* ---------- flight log ---------- */
+.f-head,.flight{
+  display:grid;grid-template-columns:52px minmax(0,2fr) minmax(0,3fr) 118px;
+  gap:14px;align-items:center;padding:14px 16px;
+}
+.f-head{
+  font-family:var(--mono);font-size:9.5px;letter-spacing:.2em;
+  border-bottom:2px solid var(--edge);color:var(--faint);
+}
+.flight{border-bottom:1px solid var(--line);position:relative}
+.flight:last-child{border-bottom:none}
+.flight:hover{background:var(--panel-2)}
+.f-no{font-family:var(--mono);font-size:11px;color:var(--faint)}
+.f-name{font-weight:700;text-transform:uppercase;font-size:16px;display:flex;align-items:center;gap:9px;flex-wrap:wrap;font-stretch:104%}
+.f-sum{color:var(--dim);font-size:14.5px}
+.status{
+  font-family:var(--mono);font-size:9px;letter-spacing:.14em;text-align:center;
+  border:1.5px solid var(--edge);padding:5px 4px;background:var(--panel);color:var(--dim);
+}
+.status.ACTIVE{border-color:var(--caution);color:var(--caution)}
+.status.COMPLETE{background:var(--paper);border-color:var(--paper);color:var(--bg)}
+.status.SCRUBBED{border-color:var(--faint);color:var(--faint);text-decoration:line-through}
+.flight .item-tools{top:auto;bottom:10px;right:12px}
+@media(max-width:720px){
+  .f-head{display:none}
+  .flight{grid-template-columns:1fr;gap:7px;padding:16px 14px 46px}
+  .f-no{display:none}
+  .status{justify-self:start;padding:5px 10px}
+}
+
+/* ---------- transmissions ---------- */
+.tx{padding:0;margin-bottom:16px}
+a.tx-head{
+  display:grid;grid-template-columns:110px 1fr;gap:14px;align-items:baseline;
+  padding:18px 20px;text-decoration:none;
+}
+a.tx-head:hover{background:var(--panel-2)}
+.tx-date{font-family:var(--mono);font-size:10px;letter-spacing:.1em;color:var(--faint)}
+.tx-title{font-weight:800;font-size:clamp(19px,3vw,26px);text-transform:uppercase;font-stretch:104%;display:flex;gap:10px;align-items:center;flex-wrap:wrap;line-height:1.1}
+.tx-excerpt{grid-column:2;color:var(--dim);font-size:14.5px}
+.tx-read{grid-column:2;font-family:var(--mono);font-size:9px;letter-spacing:.2em;color:var(--amber);margin-top:6px}
+.tx .item-tools{top:16px;right:14px}
+@media(max-width:640px){
+  a.tx-head{grid-template-columns:1fr;gap:5px}
+  .tx-excerpt,.tx-read{grid-column:1}
+}
+.tx-detail-date{font-family:var(--mono);font-size:10.5px;letter-spacing:.16em;color:var(--faint);display:flex;align-items:center;gap:10px;margin-bottom:14px}
+.tx-detail h2{margin-bottom:22px}
+.tx-detail-body{max-width:64ch;color:var(--dim);font-size:17.5px;line-height:1.7}
+.tx-detail-body p{margin-bottom:16px}
+.tx-detail-body p:first-child{color:var(--paper)}
+.pn{
+  display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;
+  margin-top:44px;border-top:2px solid var(--edge);padding-top:18px;
+}
+.pn a{font-family:var(--mono);font-size:10px;letter-spacing:.14em;text-decoration:none;color:var(--dim)}
+.pn a:hover{color:var(--amber)}
+
+/* ---------- observer ---------- */
+.obs-grid{display:grid;grid-template-columns:minmax(0,3fr) minmax(240px,2fr);gap:clamp(20px,4vw,44px);align-items:start}
+@media(max-width:820px){.obs-grid{grid-template-columns:1fr}}
+.obs-bio{max-width:58ch;color:var(--dim)}
+.obs-bio p{margin-bottom:14px}
+.obs-bio p:first-child{color:var(--paper);font-size:19px}
+.spec{padding:18px}
+.spec + .spec{margin-top:18px}
+.spec h3{font-family:var(--mono);font-size:10px;letter-spacing:.2em;color:var(--amber);margin-bottom:12px;font-weight:700}
+.spec-row{
+  display:flex;justify-content:space-between;gap:14px;
+  font-family:var(--mono);font-size:10.5px;letter-spacing:.06em;
+  padding:7px 0;border-bottom:1px solid var(--line);color:var(--dim);
+}
+.spec-row:last-child{border-bottom:none}
+.spec-row b{color:var(--paper);text-align:right}
+.channels{display:flex;flex-wrap:wrap;gap:10px}
+.channels a{
+  font-family:var(--mono);font-size:10px;letter-spacing:.16em;text-decoration:none;
+  border:2px solid var(--edge);padding:7px 12px;color:var(--paper);background:var(--panel);
+  box-shadow:var(--shadow);
+}
+.channels a:hover{background:var(--amber);border-color:var(--amber);color:var(--bg)}
+
+/* ---------- library ---------- */
+.lib-head{grid-template-columns:56px minmax(0,1fr) 118px}
+.lib{
+  display:grid;grid-template-columns:56px minmax(0,1fr) 118px;
+  gap:14px;align-items:start;padding:16px 16px 16px 14px;
+  border-bottom:1px solid var(--line);border-left:5px solid transparent;position:relative;
+}
+.lib:last-child{border-bottom:none}
+.lib:hover{background:var(--panel-2)}
+.lib-no{font-family:var(--mono);font-size:11px;color:var(--faint);padding-top:4px}
+.lib-line1{display:flex;flex-wrap:wrap;gap:6px 12px;align-items:baseline}
+.lib-type{
+  font-family:var(--mono);font-size:8.5px;letter-spacing:.18em;
+  border:1px solid var(--faint);padding:3px 6px;color:var(--dim);white-space:nowrap;
+}
+.lib-title{font-weight:800;text-transform:uppercase;font-stretch:104%;font-size:16px;line-height:1.2}
+.lib-title a{text-decoration:none;border-bottom:1.5px solid var(--faint)}
+.lib-title a:hover{color:var(--amber);border-bottom-color:var(--amber)}
+.lib-auth{font-family:var(--mono);font-size:10px;letter-spacing:.08em;color:var(--faint)}
+.lib-note{color:var(--dim);font-size:14px;margin-top:5px;max-width:60ch}
+.shelf{
+  font-family:var(--mono);font-size:9px;letter-spacing:.14em;text-align:center;
+  border:1.5px solid var(--edge);padding:5px 4px;background:var(--panel);color:var(--dim);
+  align-self:center;
+}
+.shelf.QUEUE{border-style:dashed;border-color:var(--faint);color:var(--faint)}
+.shelf.READING{border-color:var(--amber);color:var(--amber)}
+.shelf.ABSORBED{background:var(--paper);border-color:var(--paper);color:var(--bg)}
+.lib .item-tools{top:auto;bottom:12px;right:12px}
+@media(max-width:720px){
+  .lib-head{display:none}
+  .lib{grid-template-columns:1fr;gap:8px;padding:16px 14px 46px}
+  .lib-no{display:none}
+  .shelf{justify-self:start;align-self:auto;padding:5px 10px}
+}
+
+/* ---------- console / footer ---------- */
+footer{max-width:var(--maxw);margin:0 auto;padding:0 clamp(14px,3.5vw,36px) 70px}
+.console{padding:20px;display:flex;flex-direction:column;gap:14px}
+.console-row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.console-tag{font-family:var(--mono);font-size:9.5px;letter-spacing:.18em;color:var(--dim)}
+.console-tag .ok{color:var(--amber)}
+.console-tag .warn{color:var(--caution)}
+.foot-line{
+  margin-top:26px;font-family:var(--mono);font-size:9.5px;letter-spacing:.16em;
+  color:var(--faint);text-align:center;line-height:2;
+}
+
+/* ---------- modal ---------- */
+.overlay{position:fixed;inset:0;z-index:80;background:rgba(10,11,14,.6);display:flex;align-items:flex-end;justify-content:center}
+@media(min-width:640px){.overlay{align-items:center;padding:20px}}
+.overlay[hidden]{display:none}
+.modal{width:100%;max-width:520px;background:var(--panel);border:2px solid var(--edge);box-shadow:6px 6px 0 rgba(0,0,0,.55);padding:24px 22px 30px;max-height:88vh;overflow:auto}
+.modal h4{font-family:var(--mono);font-size:11px;letter-spacing:.22em;margin-bottom:20px;font-weight:700;color:var(--amber)}
+.field{margin-bottom:15px}
+.field label{display:block;font-family:var(--mono);font-size:9px;letter-spacing:.2em;color:var(--faint);margin-bottom:6px}
+.field input,.field textarea,.field select{
+  width:100%;background:var(--bg);border:2px solid var(--edge);color:var(--paper);
+  font-family:var(--sans);font-size:16px;padding:10px 11px;border-radius:0;
+  -webkit-appearance:none;appearance:none;
+}
+.field textarea{min-height:130px;resize:vertical;line-height:1.5}
+.field select{font-family:var(--mono);font-size:12px}
+.field input:focus,.field textarea:focus,.field select:focus{outline:none;border-color:var(--amber)}
+.modal-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:20px}
+
+@media(prefers-reduced-motion:reduce){
+  .live i{animation:none}
+  .btn,.btn:hover,.btn:active{transition:none;transform:none;box-shadow:var(--shadow)}
+}
+</style>
+</head>
+<body>
+<div class="grain" aria-hidden="true"></div>
+
+<div class="chrome">
+  <div class="bar">
+    <div class="bar-id">
+      <span class="who">Zenkar</span>
+      <span class="doc">ORBITAL STATION · DOC ZK-26-R4</span>
+    </div>
+    <div class="bar-right">
+      <span class="readout" id="clock">—</span>
+      <span class="live"><i></i>LIVE</span>
+      <button class="btn" id="editToggle" aria-pressed="false">EDIT</button>
+    </div>
+  </div>
+  <nav class="nav" id="nav" aria-label="Site">
+    <a href="#/" data-route="">BRIDGE</a>
+    <a href="#/manual" data-route="manual">MANUAL</a>
+    <a href="#/trajectories" data-route="trajectories">TRAJECTORIES</a>
+    <a href="#/log" data-route="log">FLIGHT LOG</a>
+    <a href="#/transmissions" data-route="transmissions">TRANSMISSIONS</a>
+    <a href="#/library" data-route="library">LIBRARY</a>
+    <a href="#/observer" data-route="observer">OBSERVER</a>
+  </nav>
+</div>
+
+<main id="view"></main>
+
+<footer>
+  <div class="panel reg console">
+    <div class="console-row">
+      <span class="sec-tag">CONSOLE</span>
+      <span class="console-tag" id="storageTag"></span>
+    </div>
+    <div class="console-row">
+      <button class="btn" id="exportBtn">EXPORT JSON</button>
+      <button class="btn" id="importBtn">IMPORT JSON</button>
+      <button class="btn only-edit" id="resetSeed">RESTORE SAMPLE DATA</button>
+      <input type="file" id="importFile" accept="application/json" hidden>
+    </div>
+    <span class="console-tag">SELF-CONTAINED FILE · RENAME TO INDEX.HTML AND DEPLOY ON ANY STATIC HOST ·
+    TO SHIP CONTENT TO ALL VISITORS, PASTE EXPORTED JSON OVER THE SEED BLOCK IN SOURCE</span>
+  </div>
+  <div class="foot-line">
+    KEPT BY ZENKAR — SYSTEMS ENGINEER IN MEDICAL IMAGING · ASTROPHYSICIST BY TRAINING · 43°N<br>
+    SET IN ARCHIVO &amp; SPACE MONO · NO FRAMEWORK, NO BUILD, NO SERVER
+  </div>
+</footer>
+
+<div class="overlay" id="overlay" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <h4 id="modalTitle">NEW ENTRY</h4>
+    <div class="field"><label for="fTitle">TITLE</label><input id="fTitle" autocomplete="off"></div>
+    <div class="field"><label for="fBody">TEXT</label><textarea id="fBody"></textarea></div>
+    <div class="field"><label for="fDomain">ORBIT</label><select id="fDomain"></select></div>
+    <div class="field" id="rowType"><label for="fType">TYPE</label>
+      <select id="fType"><option>BOOK</option><option>PAPER</option><option>ESSAY</option><option>TOOL</option><option>FILM</option><option>OTHER</option></select>
+    </div>
+    <div class="field" id="rowAuthor"><label for="fAuthor">AUTHOR / MAKER</label><input id="fAuthor" autocomplete="off"></div>
+    <div class="field" id="rowLink"><label for="fLink">LINK (OPTIONAL)</label><input id="fLink" type="url" placeholder="https://" autocomplete="off"></div>
+    <div class="field" id="rowShelf"><label for="fShelf">SHELF</label>
+      <select id="fShelf"><option>QUEUE</option><option>READING</option><option>ABSORBED</option><option>REFERENCE</option></select>
+    </div>
+    <div class="field" id="rowStatus"><label for="fStatus">STATUS</label>
+      <select id="fStatus"><option>PLANNED</option><option>ACTIVE</option><option>COMPLETE</option><option>SCRUBBED</option></select>
+    </div>
+    <div class="field" id="rowHorizon"><label for="fHorizon">HORIZON</label>
+      <select id="fHorizon"><option>NOW</option><option>THIS YEAR</option><option>SOMEDAY</option></select>
+    </div>
+    <div class="modal-actions">
+      <button class="btn" id="modalCancel">CANCEL</button>
+      <button class="btn on" id="modalSave">SAVE</button>
+    </div>
+  </div>
+</div>
+
+<script>
+'use strict';
+/* =============================================================
+   ORBITAL STATION — station software, rev. 3 (multi-page)
+   ============================================================= */
+
+const DOMAINS = [
+  {id:'systems', name:'SYSTEMS', color:'#7FA6C9', r:95,
+   desc:'Engineering as a way of seeing — architecture, instrumentation, and the discipline of making complex things reliable.'},
+  {id:'markets', name:'MARKETS', color:'#C9A24B', r:130,
+   desc:'Capital as stored energy. Trading systems, long-horizon investing, and the honest study of risk.'},
+  {id:'craft',   name:'CRAFT',   color:'#C97F5F', r:165,
+   desc:'Hands and senses — cooking, photography, and the pursuits chosen purely for aliveness.'},
+  {id:'astro',   name:'ASTRO',   color:'#9D8FD0', r:200,
+   desc:'First love. Astrophysics, dark skies, and the long view that keeps the rest in scale.'},
+  {id:'venture', name:'VENTURE', color:'#D97A45', r:235,
+   desc:'Things built to leave the pad — products, experiments, small deliberate bets.'},
+  {id:'words',   name:'WORDS',   color:'#8FAE8B', r:270,
+   desc:'Transmissions and essays. Thinking, made durable.'}
+];
+const DEFAULT_CAPTION = 'Phase is honest scheduling: whatever sits near 12 o\'clock is what this season is actually for. Drag the bodies until the chart matches the truth.';
+const domainById = id => DOMAINS.find(d=>d.id===id) || DOMAINS[0];
+
+/* ---------- seed content ---------- */
+const SEED = {
+  v:2,
+  phases:{systems:-70, markets:-15, craft:35, astro:120, venture:200, words:265},
+  phasesTouched:false,
+  visions:[
+    {id:'v1', title:'Senior Systems Engineer', domain:'systems', horizon:'THIS YEAR',
+     note:'The next stable orbit at work — scope, judgment, and the title that matches them.'},
+    {id:'v2', title:'Helios flies real capital', domain:'markets', horizon:'THIS YEAR',
+     note:'Graduate the bot from paper to a small live book, behind risk rails it cannot cross.'},
+    {id:'v3', title:'A Bortle-1 night', domain:'astro', horizon:'SOMEDAY',
+     note:'The Milky Way core from a truly dark site, camera on a tracker, nowhere to be at dawn.'},
+    {id:'v4', title:'Three to five aliveness pursuits', domain:'craft', horizon:'NOW',
+     note:'Chosen deliberately each year. Escaped into, not studied.'},
+    {id:'v5', title:'Twelve transmissions', domain:'words', horizon:'THIS YEAR',
+     note:'One honest essay a month, published here, whether or not anyone is listening.'}
+  ],
+  projects:[
+    {id:'p1', title:'Helios', domain:'markets', status:'ACTIVE',
+     note:'Autonomous trading bot. Architecture and risk framework in design; paper flight first.'},
+    {id:'p2', title:'Orbital Station', domain:'venture', status:'ACTIVE',
+     note:'This site. One file, no framework, deployable anywhere static.'},
+    {id:'p3', title:'Weekly meal system', domain:'craft', status:'COMPLETE',
+     note:'A reusable planning routine that turns a pantry and a Sunday hour into a week.'},
+    {id:'p4', title:'Mastery curricula', domain:'systems', status:'ACTIVE',
+     note:'Self-designed roadmaps across domains. Sequencing beats intensity.'}
+  ],
+  notes:[
+    {id:'n1', date:'2026.07.20', title:'Why an orbital model', domain:'words',
+     body:'Planets do not multitask. Each one holds a single path and keeps its own period, and the system works precisely because nothing tries to be everywhere at once.\n\nThat is the whole idea. I stopped trying to balance a life — equal weight to everything, every week — and started phasing it instead. Markets can run close and fast for a season while astronomy swings out to the far side of its loop. Nothing is abandoned; it is simply at a different point in its orbit, and I know it comes back around.\n\nThe center is not a job or a project. It is the small set of values with enough mass to hold everything else: curiosity, discovery, freedom, discipline, growth. When one domain starts pulling the others off their tracks, that is not momentum. That is a system losing its star.'},
+    {id:'n2', date:'2026.07.05', title:'Relativistic jets, revisited', domain:'astro',
+     body:'My senior thesis was on the deceleration of relativistic jets — matter flung from an active galaxy at nearly the speed of light, gradually surrendering its momentum to everything it plows through.\n\nI reread part of it this week. The physics held up better than the prose. What struck me most was the reminder that even the fastest, most violent things in the universe are eventually shaped by drag — by the slow, patient medium they travel through.\n\nThere is probably a lesson in that about careers, or habits. Mostly it made me want to get the telescope out again.'}
+  ],
+  library:[
+    {id:'b1', type:'BOOK', title:'The Design of Everyday Things', author:'DON NORMAN',
+     domain:'craft', shelf:'ABSORBED', link:'',
+     note:'Why good systems disappear and bad ones shout. Half my calibration instincts trace back here.'},
+    {id:'b2', type:'BOOK', title:'Reminiscences of a Stock Operator', author:'EDWIN LEFÈVRE',
+     domain:'markets', shelf:'ABSORBED', link:'',
+     note:'A century old and still the best risk-management document ever disguised as a biography.'},
+    {id:'b3', type:'PAPER', title:'Relativistic jets as compact radio sources', author:'BLANDFORD & KÖNIGL, 1979',
+     domain:'astro', shelf:'REFERENCE', link:'',
+     note:'The model my thesis argued with. Kept close, the way you keep an old sparring partner.'},
+    {id:'b4', type:'TOOL', title:'Obsidian', author:'',
+     domain:'systems', shelf:'REFERENCE', link:'https://obsidian.md',
+     note:'The station\'s ground archive — every mission here started as a note there.'},
+    {id:'b5', type:'ESSAY', title:'In Praise of Idleness', author:'BERTRAND RUSSELL',
+     domain:'words', shelf:'QUEUE', link:'',
+     note:'Queued for the next far-side season of Craft. Aliveness deserves a defense of leisure.'}
+  ]
+};
+
+/* ---------- state ---------- */
+let state = null;
+let selected = null;
+let editMode = false;
+const KEY = 'orbital-station:v2';   /* unchanged so earlier edits carry over */
+const uid = () => 'x' + Math.random().toString(36).slice(2,9);
+
+/* ---------- storage adapter: artifact → localStorage → memory ---------- */
+const store = (() => {
+  if (typeof window.storage === 'object' && window.storage && typeof window.storage.get === 'function'){
+    return {
+      label:'STATION MEMORY',
+      async get(){ try{ const r = await window.storage.get(KEY); return r && r.value ? r.value : null; }catch(e){ return null; } },
+      async set(v){ const r = await window.storage.set(KEY, v); if(!r) throw new Error('set failed'); }
+    };
+  }
+  try{
+    const t='__probe__'; localStorage.setItem(t,'1'); localStorage.removeItem(t);
+    return {
+      label:'THIS BROWSER',
+      async get(){ return localStorage.getItem(KEY); },
+      async set(v){ localStorage.setItem(KEY, v); }
+    };
+  }catch(e){}
+  let mem = null;
+  return { label:'SESSION ONLY', async get(){ return mem; }, async set(v){ mem = v; } };
+})();
+
+let persistOK = true;
+async function loadState(){
+  try{
+    const raw = await store.get();
+    if(raw){ const s = JSON.parse(raw); if(s && s.visions) return s; }
+  }catch(e){}
+  return null;
+}
+async function saveState(){
+  try{ await store.set(JSON.stringify(state)); persistOK = true; }
+  catch(e){ persistOK = false; }
+  renderStorageTag();
+}
+function renderStorageTag(){
+  document.getElementById('storageTag').innerHTML = persistOK
+    ? 'PERSISTENCE: <span class="ok">'+store.label+'</span>'
+    : 'PERSISTENCE: <span class="warn">FAILED — EXPORT JSON TO KEEP CHANGES</span>';
+}
+
+/* ---------- helpers ---------- */
+const esc = s => String(s ?? '')
+  .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+const sq = d => '<span class="sq" style="background:'+d.color+'"></span>';
+const rad = deg => deg*Math.PI/180;
+const proximity = deg => (1 - Math.sin(rad(deg)))/2;   /* 12 o'clock = NEAR */
+const linkedCount = id =>
+  state.visions.filter(v=>v.domain===id).length
++ state.projects.filter(p=>p.domain===id).length
++ state.notes.filter(n=>n.domain===id).length
++ (state.library||[]).filter(l=>l.domain===id).length;
+const chipHTML = () => selected
+  ? '<span class="filter-chip show" data-chip><b>FILTER · '+domainById(selected).name+'</b><button data-clear>CLEAR ×</button></span>'
+  : '';
+
+/* =============================================================
+   ROUTER
+   ============================================================= */
+const VIEW = document.getElementById('view');
+let route = {page:'', arg:null};
+
+function parseHash(){
+  const parts = location.hash.replace(/^#\/?/,'').split('/').filter(Boolean);
+  return {page: parts[0]||'', arg: parts[1]||null};
+}
+function go(){
+  route = parseHash();
+  document.querySelectorAll('#nav a').forEach(a=>{
+    a.classList.toggle('active', a.dataset.route === route.page);
+  });
+  renderRoute();
+  scrollTo(0,0);
+}
+function renderRoute(){
+  const titles = {'':'Bridge', manual:'Manual', trajectories:'Trajectories',
+                  log:'Flight Log', transmissions:'Transmissions',
+                  library:'Library', observer:'Observer'};
+  document.title = (titles[route.page]||'Bridge')+' — Orbital Station';
+  switch(route.page){
+    case '':              viewBridge(); break;
+    case 'manual':        viewManual(); break;
+    case 'trajectories':  viewTrajectories(); break;
+    case 'log':           viewLog(); break;
+    case 'transmissions': route.arg ? viewTxDetail(route.arg) : viewTxIndex(); break;
+    case 'library':       viewLibrary(); break;
+    case 'observer':      viewObserver(); break;
+    default: location.hash = '#/';
+  }
+}
+addEventListener('hashchange', go);
+
+/* =============================================================
+   PAGE: BRIDGE
+   ============================================================= */
+function viewBridge(){
+  const latest = state.notes[0];
+  const active = state.projects.filter(p=>p.status==='ACTIVE').length;
+  VIEW.innerHTML =
+  '<div class="page">'
+  + '<span class="eyebrow">THE ORBITAL MODEL · OPERATIONS · 2026</span>'
+  + '<h1>Six orbits.<span class="ghost">One center of mass.</span></h1>'
+  + '<p class="lede">I don\'t balance a life — I phase it. Six domains each hold their own track '
+  + 'around a fixed center; some run close and hot this season, some swing wide and quiet. '
+  + 'The orrery below isn\'t a picture of the idea. It\'s the control.</p>'
+  + '<div class="constants"><b>GOVERNING&nbsp;CONSTANTS</b>'
+  + '<span>CURIOSITY</span><span>DISCOVERY</span><span>FREEDOM</span><span>DISCIPLINE</span><span>GROWTH</span></div>'
+  + '<div class="panel reg orrery-panel">'
+  +   '<div class="orrery-hint"><span>FIG. 1 — SYSTEM STATE</span>'
+  +   '<span>DRAG A BODY TO SET ITS PHASE · TAP TO FOCUS · 12 O\'CLOCK = NEAR</span></div>'
+  +   '<div class="orrery-grid">'
+  +     '<svg id="orrery" viewBox="0 0 640 640" role="img" aria-label="Interactive orrery of six life domains. Drag a body along its orbit to set how near it currently is; tap a body or a system state row to focus that domain."></svg>'
+  +     '<div><div class="state-list" id="stateList"></div>'
+  +     '<p class="state-caption" id="stateCaption"></p></div>'
+  +   '</div>'
+  + '</div>'
+  + '<div class="digest">'
+  +   '<div class="panel"><span class="d-tag">MISSIONS ACTIVE</span>'
+  +     '<span class="d-big">'+String(active).padStart(2,'0')+'</span>'
+  +     '<p class="d-sub">of '+state.projects.length+' logged — see <a href="#/log">Flight Log</a></p></div>'
+  +   '<div class="panel"><span class="d-tag">TRAJECTORIES PLOTTED</span>'
+  +     '<span class="d-big">'+String(state.visions.length).padStart(2,'0')+'</span>'
+  +     '<p class="d-sub">destinations on the board — see <a href="#/trajectories">Trajectories</a></p></div>'
+  +   '<div class="panel"><span class="d-tag">LIBRARY HOLDINGS</span>'
+  +     '<span class="d-big">'+String((state.library||[]).length).padStart(2,'0')+'</span>'
+  +     '<p class="d-sub">on the shelves — see <a href="#/library">Library</a></p></div>'
+  +   (latest
+      ? '<a class="panel" href="#/transmissions/'+latest.id+'"><span class="d-tag">LATEST TRANSMISSION · '+esc(latest.date)+'</span>'
+        + '<span class="d-title">'+esc(latest.title)+'</span>'
+        + '<p class="d-sub">READ →</p></a>'
+      : '<div class="panel"><span class="d-tag">LATEST TRANSMISSION</span><p class="d-sub">Channel quiet.</p></div>')
+  + '</div>'
+  + '</div>';
+  buildOrrery();
+  renderStateList();
+}
+
+/* ---------- orrery (SVG, bridge only) ---------- */
+const NS = 'http://www.w3.org/2000/svg';
+const C = 320;
+const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+let svg=null, bodyEls={}, labelEls={}, trackEls={};
+let dragging=null, dragMoved=false, lastT=null;
+
+function buildOrrery(){
+  svg = document.getElementById('orrery');
+  if(!svg) return;
+  bodyEls={}; labelEls={}; trackEls={};
+  const near = document.createElementNS(NS,'text');
+  near.setAttribute('x',C); near.setAttribute('y',26);
+  near.setAttribute('text-anchor','middle'); near.setAttribute('class','apsis');
+  near.textContent='NEAR'; svg.appendChild(near);
+  const far = document.createElementNS(NS,'text');
+  far.setAttribute('x',C); far.setAttribute('y',624);
+  far.setAttribute('text-anchor','middle'); far.setAttribute('class','apsis');
+  far.textContent='FAR'; svg.appendChild(far);
+  const tick = document.createElementNS(NS,'line');
+  tick.setAttribute('x1',C); tick.setAttribute('y1',34);
+  tick.setAttribute('x2',C); tick.setAttribute('y2',44);
+  tick.setAttribute('stroke','#E9E5DA'); tick.setAttribute('stroke-opacity','.4');
+  svg.appendChild(tick);
+
+  DOMAINS.forEach(d=>{
+    const tr = document.createElementNS(NS,'circle');
+    tr.setAttribute('cx',C); tr.setAttribute('cy',C); tr.setAttribute('r',d.r);
+    tr.setAttribute('class','track'); tr.setAttribute('stroke',d.color);
+    svg.appendChild(tr); trackEls[d.id]=tr;
+  });
+
+  const g = document.createElementNS(NS,'g');
+  g.innerHTML = '<line x1="'+(C-10)+'" y1="'+C+'" x2="'+(C+10)+'" y2="'+C+'" stroke="#E9E5DA" stroke-width="1.5"/>'
+              + '<line x1="'+C+'" y1="'+(C-10)+'" x2="'+C+'" y2="'+(C+10)+'" stroke="#E9E5DA" stroke-width="1.5"/>'
+              + '<circle cx="'+C+'" cy="'+C+'" r="5.5" fill="none" stroke="#E9E5DA" stroke-width="1.5"/>';
+  g.style.cursor='pointer';
+  g.addEventListener('click', ()=>{ selected=null; renderRoute(); });
+  svg.appendChild(g);
+
+  DOMAINS.forEach(d=>{
+    const b = document.createElementNS(NS,'circle');
+    b.setAttribute('r',9); b.setAttribute('fill',d.color); b.setAttribute('class','body');
+    b.addEventListener('pointerdown', ev=>{ ev.preventDefault(); dragging=d.id; dragMoved=false;
+      svg.setPointerCapture && svg.setPointerCapture(ev.pointerId); });
+    svg.appendChild(b); bodyEls[d.id]=b;
+    const l = document.createElementNS(NS,'text');
+    l.setAttribute('class','blabel'); l.textContent=d.name;
+    svg.appendChild(l); labelEls[d.id]=l;
+  });
+
+  svg.addEventListener('pointermove', ev=>{
+    if(!dragging) return;
+    const r = svg.getBoundingClientRect();
+    const p = { x:(ev.clientX-r.left)*640/r.width, y:(ev.clientY-r.top)*640/r.height };
+    const a = Math.atan2(p.y-C, p.x-C)*180/Math.PI;
+    if(Math.abs(((a - state.phases[dragging] + 540)%360)-180) > 1.2) dragMoved = true;
+    if(dragMoved){
+      state.phases[dragging] = a;
+      state.phasesTouched = true;
+      positionBodies(); renderStateList(false);
+    }
+  });
+  positionBodies();
+}
+addEventListener('pointerup', ()=>{
+  if(!dragging) return;
+  const wasMoved = dragMoved, id = dragging;
+  dragging = null;
+  if(wasMoved){ saveState(); renderCaption(); }
+  else { selectDomain(id); }
+});
+
+function positionBodies(){
+  if(!svg || !document.getElementById('orrery')) return;
+  DOMAINS.forEach(d=>{
+    const a = rad(state.phases[d.id]);
+    const x = C + Math.cos(a)*d.r, y = C + Math.sin(a)*d.r;
+    bodyEls[d.id].setAttribute('cx',x); bodyEls[d.id].setAttribute('cy',y);
+    const lx = C + Math.cos(a)*(d.r+22), ly = C + Math.sin(a)*(d.r+22);
+    labelEls[d.id].setAttribute('x',lx); labelEls[d.id].setAttribute('y',ly+3);
+    labelEls[d.id].setAttribute('text-anchor', lx<C-12?'end':lx>C+12?'start':'middle');
+    labelEls[d.id].setAttribute('class','blabel'+(selected && selected!==d.id?' dim':''));
+    trackEls[d.id].setAttribute('class','track'+(selected===d.id?' sel':''));
+  });
+}
+function drift(t){
+  if(route.page==='' && !dragging && !state.phasesTouched && document.getElementById('orrery')){
+    if(lastT!=null){
+      const dt=(t-lastT)/1000;
+      DOMAINS.forEach(d=>{
+        const period = 40*Math.pow(d.r/95,1.5);
+        state.phases[d.id] = (state.phases[d.id] + dt*360/period) % 360;
+      });
+      positionBodies(); renderStateList(false);
+    }
+  }
+  lastT=t;
+  requestAnimationFrame(drift);
+}
+function renderStateList(fullCaption=true){
+  const el = document.getElementById('stateList');
+  if(!el) return;
+  const rows = DOMAINS.map(d=>({d,p:proximity(state.phases[d.id])})).sort((a,b)=>b.p-a.p);
+  el.innerHTML = rows.map(({d,p})=>{
+    const pct = Math.round(p*100);
+    return '<button class="state-row'+(selected===d.id?' sel':'')+'" data-domain="'+d.id+'" aria-pressed="'+(selected===d.id)+'">'
+      + '<span class="sq" style="background:'+d.color+'"></span>'
+      + '<span>'+d.name+'<span class="bar-wrap"><span class="bar-fill" style="width:'+pct+'%;color:'+d.color+'"></span></span></span>'
+      + '<span class="pct">'+pct+'%</span></button>';
+  }).join('');
+  if(fullCaption) renderCaption();
+}
+function renderCaption(){
+  const cap = document.getElementById('stateCaption');
+  if(!cap) return;
+  if(selected){
+    const d = domainById(selected);
+    cap.innerHTML = '<b>'+d.name+' · '+Math.round(proximity(state.phases[d.id])*100)+'% NEAR · '
+      + linkedCount(selected)+' LINKED</b><br>'+esc(d.desc);
+  }else cap.textContent = DEFAULT_CAPTION;
+}
+
+/* =============================================================
+   PAGE: MANUAL
+   ============================================================= */
+function viewManual(){
+  const orbits = DOMAINS.map(d=>
+    '<div class="orbit-row">'+sq(d)+'<b>'+d.name+'</b><span>'+esc(d.desc)+'</span></div>'
+  ).join('');
+  VIEW.innerHTML =
+  '<div class="page">'
+  + '<div class="sec-head"><span class="sec-tag">DOC. 0</span><span class="sec-rule"></span></div>'
+  + '<h2>The Manual</h2>'
+  + '<p class="sec-sub">The Orbital Model, written down — the operating theory behind everything else on this station.</p>'
+
+  + '<div class="man-sec"><span class="man-label">1.0 · PREMISE</span><div class="man-body">'
+  + '<p>Planets do not multitask. Each holds one path at one speed, and the system works because nothing tries to be everywhere at once.</p>'
+  + '<p>Most advice about a full life asks for <strong>balance</strong> — equal weight to everything, every week. I have never seen balance survive contact with an actual week. The Orbital Model replaces it with <strong>phase</strong>: every domain stays in the system permanently, but only one or two run close at a time.</p>'
+  + '</div></div>'
+
+  + '<div class="man-sec"><span class="man-label">2.0 · CENTER OF MASS</span><div class="man-body">'
+  + '<p>Orbits need something heavy to bend around. The center here is not a job, a project, or a person — those are all bodies in motion themselves.</p>'
+  + '<p>The center is a small set of values with enough mass to hold everything else: <strong>curiosity, discovery, freedom, discipline, growth</strong>. Decisions get made by asking which option falls toward that mass.</p>'
+  + '</div></div>'
+
+  + '<div class="man-sec"><span class="man-label">3.0 · PHASE DISCIPLINE</span><div class="man-body">'
+  + '<p>Near means this is what the season is for: real hours, real attention, visible progress. Far does not mean abandoned — it means coasting on maintenance energy, waiting for its turn to come back around.</p>'
+  + '<p>The discipline is refusing to feel guilty about the far side of an orbit. A domain at apogee is not neglected. It is <strong>scheduled</strong>.</p>'
+  + '</div></div>'
+
+  + '<div class="man-sec"><span class="man-label">4.0 · THE SIX ORBITS</span><div class="man-body" style="max-width:none">'
+  + orbits
+  + '</div></div>'
+
+  + '<div class="man-sec"><span class="man-label">5.0 · FAILURE MODES</span><div class="man-body">'
+  + '<p>Two ways the system dies. <strong>Collision</strong>: one domain gets so heavy it drags the others off their tracks — usually work, sometimes a market. <strong>Drift</strong>: the center loses mass, and everything wanders outward into low-energy loops that no longer return.</p>'
+  + '<p>The orrery on the <a href="#/">Bridge</a> exists to catch both early. If the chart stops matching the truth, the chart is the alarm.</p>'
+  + '</div></div>'
+  + '</div>';
+}
+
+/* =============================================================
+   PAGE: TRAJECTORIES
+   ============================================================= */
+function viewTrajectories(){
+  const cards = !state.visions.length
+    ? '<div class="empty">NO TRAJECTORIES PLOTTED — OPEN EDIT TO ADD THE FIRST</div>'
+    : state.visions.map((v,i)=>{
+        const d = domainById(v.domain);
+        const dim = selected && v.domain!==selected ? ' dimmed':'';
+        return '<article class="panel traj item'+dim+'" data-id="'+v.id+'">'
+          + '<span class="traj-num">'+String(i+1).padStart(2,'0')+'</span>'
+          + '<h3>'+esc(v.title)+'</h3><p>'+esc(v.note)+'</p>'
+          + '<div class="traj-foot">'+sq(d)+d.name+'&nbsp;·&nbsp;'+esc(v.horizon||'')+'</div>'
+          + '<div class="item-tools">'
+          +   '<button class="tool" data-edit="vision" data-id="'+v.id+'">EDIT</button>'
+          +   '<button class="tool" data-del="visions" data-id="'+v.id+'">DELETE</button>'
+          + '</div></article>';
+      }).join('');
+  VIEW.innerHTML =
+  '<div class="page">'
+  + '<div class="sec-head"><span class="sec-tag">SEC. A</span><span class="sec-rule"></span>'
+  + chipHTML()
+  + '<button class="btn add-btn only-edit" data-add="vision">+ PLOT TRAJECTORY</button></div>'
+  + '<h2>Trajectories</h2>'
+  + '<p class="sec-sub">The vision board, held to mission standards: each card is a planned burn — a destination with enough pull to steer the ordinary weeks.</p>'
+  + '<div class="traj-grid">'+cards+'</div>'
+  + '</div>';
+}
+
+/* =============================================================
+   PAGE: FLIGHT LOG
+   ============================================================= */
+function viewLog(){
+  const rows = !state.projects.length
+    ? '<div class="empty" style="border:none">PAD IS CLEAR — OPEN EDIT TO LOG THE FIRST MISSION</div>'
+    : state.projects.map((p,i)=>{
+        const d = domainById(p.domain);
+        const dim = selected && p.domain!==selected ? ' dimmed':'';
+        const st = esc(p.status||'PLANNED');
+        return '<div class="flight item'+dim+'" data-id="'+p.id+'">'
+          + '<span class="f-no">'+String(i+1).padStart(2,'0')+'</span>'
+          + '<span class="f-name">'+sq(d)+esc(p.title)+'</span>'
+          + '<span class="f-sum">'+esc(p.note)+'</span>'
+          + '<span class="status '+st+'">'+st+'</span>'
+          + '<div class="item-tools">'
+          +   '<button class="tool" data-edit="project" data-id="'+p.id+'">EDIT</button>'
+          +   '<button class="tool" data-del="projects" data-id="'+p.id+'">DELETE</button>'
+          + '</div></div>';
+      }).join('');
+  VIEW.innerHTML =
+  '<div class="page">'
+  + '<div class="sec-head"><span class="sec-tag">SEC. B</span><span class="sec-rule"></span>'
+  + chipHTML()
+  + '<button class="btn add-btn only-edit" data-add="project">+ LOG MISSION</button></div>'
+  + '<h2>Flight Log</h2>'
+  + '<p class="sec-sub">The project diary. Every build gets a line — including the scrubs, because the record is only useful if it\'s honest.</p>'
+  + '<div class="panel">'
+  +   '<div class="f-head"><span>NO.</span><span>MISSION</span><span>SUMMARY</span><span>STATUS</span></div>'
+  +   rows
+  + '</div>'
+  + '</div>';
+}
+
+/* =============================================================
+   PAGE: TRANSMISSIONS (index + detail)
+   ============================================================= */
+function viewTxIndex(){
+  const items = !state.notes.length
+    ? '<div class="empty">CHANNEL QUIET — OPEN EDIT TO SEND THE FIRST TRANSMISSION</div>'
+    : state.notes.map(n=>{
+        const d = domainById(n.domain);
+        const dim = selected && n.domain!==selected ? ' dimmed':'';
+        const excerpt = esc(String(n.body||'').split(/\n/)[0]).slice(0,140);
+        return '<article class="panel tx item'+dim+'" data-id="'+n.id+'">'
+          + '<a class="tx-head" href="#/transmissions/'+n.id+'">'
+          +   '<span class="tx-date">'+esc(n.date)+'</span>'
+          +   '<span class="tx-title">'+sq(d)+esc(n.title)+'</span>'
+          +   '<span class="tx-excerpt">'+excerpt+'…</span>'
+          +   '<span class="tx-read">READ →</span>'
+          + '</a>'
+          + '<div class="item-tools">'
+          +   '<button class="tool" data-edit="note" data-id="'+n.id+'">EDIT</button>'
+          +   '<button class="tool" data-del="notes" data-id="'+n.id+'">DELETE</button>'
+          + '</div></article>';
+      }).join('');
+  VIEW.innerHTML =
+  '<div class="page">'
+  + '<div class="sec-head"><span class="sec-tag">SEC. C</span><span class="sec-rule"></span>'
+  + chipHTML()
+  + '<button class="btn add-btn only-edit" data-add="note">+ NEW TRANSMISSION</button></div>'
+  + '<h2>Transmissions</h2>'
+  + '<p class="sec-sub">Essays and log entries, sent down from the station.</p>'
+  + items
+  + '</div>';
+}
+
+function viewTxDetail(id){
+  const n = state.notes.find(x=>x.id===id);
+  if(!n){ location.hash = '#/transmissions'; return; }
+  const d = domainById(n.domain);
+  const i = state.notes.indexOf(n);
+  const prev = state.notes[i+1], next = state.notes[i-1];   /* notes are newest-first */
+  const paras = String(n.body||'').split(/\n\s*\n/).map(p=>'<p>'+esc(p)+'</p>').join('');
+  VIEW.innerHTML =
+  '<div class="page tx-detail">'
+  + '<a class="backlink" href="#/transmissions">← ALL TRANSMISSIONS</a>'
+  + '<div class="tx-detail-date">'+sq(d)+d.name+' · '+esc(n.date)
+  + '<span class="only-edit item-tools" style="display:inline-flex;position:static">'
+  +   '<button class="tool" data-edit="note" data-id="'+n.id+'">EDIT</button>'
+  +   '<button class="tool" data-del="notes" data-id="'+n.id+'" data-then="#/transmissions">DELETE</button>'
+  + '</span></div>'
+  + '<h2>'+esc(n.title)+'</h2>'
+  + '<div class="tx-detail-body">'+paras+'</div>'
+  + '<div class="pn">'
+  +   (prev ? '<a href="#/transmissions/'+prev.id+'">← OLDER · '+esc(prev.title)+'</a>' : '<span></span>')
+  +   (next ? '<a href="#/transmissions/'+next.id+'">NEWER · '+esc(next.title)+' →</a>' : '<span></span>')
+  + '</div>'
+  + '</div>';
+}
+
+/* =============================================================
+   PAGE: LIBRARY
+   ============================================================= */
+function viewLibrary(){
+  const rows = !state.library.length
+    ? '<div class="empty" style="border:none">SHELVES ARE BARE — OPEN EDIT TO ACCESSION THE FIRST HOLDING</div>'
+    : state.library.map((b,i)=>{
+        const d = domainById(b.domain);
+        const dim = selected && b.domain!==selected ? ' dimmed':'';
+        const type = esc(b.type||'BOOK'), shelf = esc(b.shelf||'QUEUE');
+        const safeLink = b.link && /^https?:\/\//i.test(b.link) ? esc(b.link) : null;
+        const titleHTML = safeLink
+          ? '<a href="'+safeLink+'" target="_blank" rel="noopener noreferrer">'+esc(b.title)+'</a>'
+          : esc(b.title);
+        return '<div class="lib item'+dim+'" style="border-left-color:'+d.color+'" data-id="'+b.id+'">'
+          + '<span class="lib-no">'+String(i+1).padStart(3,'0')+'</span>'
+          + '<div><div class="lib-line1">'
+          +   '<span class="lib-type">'+type+'</span>'
+          +   '<span class="lib-title">'+titleHTML+'</span>'
+          +   (b.author ? '<span class="lib-auth">'+esc(b.author)+'</span>' : '')
+          + '</div>'
+          + '<p class="lib-note">'+esc(b.note||'')+'</p></div>'
+          + '<span class="shelf '+shelf+'">'+shelf+'</span>'
+          + '<div class="item-tools">'
+          +   '<button class="tool" data-edit="libitem" data-id="'+b.id+'">EDIT</button>'
+          +   '<button class="tool" data-del="library" data-id="'+b.id+'">DELETE</button>'
+          + '</div></div>';
+      }).join('');
+  VIEW.innerHTML =
+  '<div class="page">'
+  + '<div class="sec-head"><span class="sec-tag">SEC. D</span><span class="sec-rule"></span>'
+  + chipHTML()
+  + '<button class="btn add-btn only-edit" data-add="libitem">+ NEW ACCESSION</button></div>'
+  + '<h2>The Library</h2>'
+  + '<p class="sec-sub">The reading room and toolshed — books, papers, essays, and instruments that shape how this station thinks. Accessioned in the order they arrived; each holding is tied to the orbit it feeds.</p>'
+  + '<div class="panel">'
+  +   '<div class="f-head lib-head"><span>ACC.</span><span>HOLDING</span><span>SHELF</span></div>'
+  +   rows
+  + '</div>'
+  + '</div>';
+}
+
+/* =============================================================
+   PAGE: OBSERVER
+   ============================================================= */
+function viewObserver(){
+  const ranked = DOMAINS.map(d=>({d,p:proximity(state.phases[d.id])})).sort((a,b)=>b.p-a.p);
+  const phase = ranked.slice(0,2).map(r=>r.d.name).join(' · ');
+  VIEW.innerHTML =
+  '<div class="page">'
+  + '<div class="sec-head"><span class="sec-tag">SEC. E</span><span class="sec-rule"></span></div>'
+  + '<h2>The Observer</h2>'
+  + '<p class="sec-sub">Who keeps this station, and how to reach it.</p>'
+  + '<div class="obs-grid">'
+  +  '<div class="obs-bio">'
+  +   '<p>I\'m Zenkar — a systems engineer in medical imaging by day, an astrophysicist by training, and the sole operator of this station.</p>'
+  +   '<p>The through-line has always been the same: complex systems, taken seriously. CT scanners, trading engines, a week of meals, a year of a life — they all reward the same habits of architecture, instrumentation, and honest telemetry. This site applies those habits to the one system I actually run end to end.</p>'
+  +   '<p>Everything here is written and built by hand: one file, no framework, no tracking. If the orrery on the Bridge says a domain is near, that\'s genuinely where my hours are going. If a mission gets scrubbed, it stays in the log.</p>'
+  +  '</div>'
+  +  '<div>'
+  +   '<div class="panel reg spec"><h3>CURRENT PHASE</h3>'
+  +     '<div class="spec-row"><span>RUNNING NEAR</span><b>'+phase+'</b></div>'
+  +     '<div class="spec-row"><span>MISSIONS ACTIVE</span><b>'+state.projects.filter(p=>p.status==='ACTIVE').length+'</b></div>'
+  +     '<div class="spec-row"><span>TRANSMISSIONS SENT</span><b>'+state.notes.length+'</b></div>'
+  +   '</div>'
+  +   '<div class="panel reg spec"><h3>STATION DATA</h3>'
+  +     '<div class="spec-row"><span>OPERATOR</span><b>ZENKAR</b></div>'
+  +     '<div class="spec-row"><span>LATITUDE</span><b>43°N</b></div>'
+  +     '<div class="spec-row"><span>TRAINING</span><b>ASTROPHYSICS / AEROSPACE</b></div>'
+  +     '<div class="spec-row"><span>DAY JOB</span><b>MEDICAL IMAGING SYSTEMS</b></div>'
+  +     '<div class="spec-row"><span>TYPEFACES</span><b>ARCHIVO · SPACE MONO</b></div>'
+  +   '</div>'
+  +   '<div class="panel reg spec"><h3>CHANNELS</h3>'
+  +     '<div class="channels">'
+  /* CHANNELS — replace these hrefs with your real links */
+  +       '<a href="mailto:hello@example.com">EMAIL</a>'
+  +       '<a href="https://github.com" rel="me">GITHUB</a>'
+  +       '<a href="#/transmissions">RSS: SOON</a>'
+  +     '</div>'
+  +   '</div>'
+  +  '</div>'
+  + '</div>'
+  + '</div>';
+}
+
+/* =============================================================
+   SHARED BEHAVIOR
+   ============================================================= */
+function selectDomain(id){
+  selected = (selected===id) ? null : id;
+  renderRoute();
+}
+function updateClock(){
+  const now = new Date();
+  const mjd = (now.getTime()/86400000 + 40587).toFixed(2);
+  const utc = now.toISOString().slice(11,16);
+  document.getElementById('clock').innerHTML = 'MJD '+mjd+'<span class="utc"> · '+utc+' UTC</span>';
+}
+
+/* ---------- modal ---------- */
+const overlay = document.getElementById('overlay');
+let modalCtx = null;
+function fillDomainSelect(){
+  document.getElementById('fDomain').innerHTML =
+    DOMAINS.map(d=>'<option value="'+d.id+'">'+d.name+'</option>').join('');
+}
+function openModal(kind, item){
+  modalCtx = {kind, id: item?item.id:null};
+  document.getElementById('modalTitle').textContent =
+    (item?'EDIT ':'NEW ') + (kind==='vision'?'TRAJECTORY':kind==='project'?'MISSION':kind==='libitem'?'ACCESSION':'TRANSMISSION');
+  document.getElementById('fTitle').value = item?item.title:'';
+  document.getElementById('fBody').value = item?(item.note||item.body||''):'';
+  document.getElementById('fDomain').value = item?item.domain:(selected||'systems');
+  document.getElementById('rowStatus').style.display = kind==='project'?'block':'none';
+  document.getElementById('rowHorizon').style.display = kind==='vision'?'block':'none';
+  const isLib = kind==='libitem';
+  ['rowType','rowAuthor','rowLink','rowShelf'].forEach(r=>{
+    document.getElementById(r).style.display = isLib?'block':'none';
+  });
+  if(kind==='project') document.getElementById('fStatus').value = item?item.status:'PLANNED';
+  if(kind==='vision')  document.getElementById('fHorizon').value = item?item.horizon:'THIS YEAR';
+  if(isLib){
+    document.getElementById('fType').value = item?(item.type||'BOOK'):'BOOK';
+    document.getElementById('fAuthor').value = item?(item.author||''):'';
+    document.getElementById('fLink').value = item?(item.link||''):'';
+    document.getElementById('fShelf').value = item?(item.shelf||'QUEUE'):'QUEUE';
+  }
+  overlay.hidden = false;
+  setTimeout(()=>document.getElementById('fTitle').focus(), 30);
+}
+function closeModal(){ overlay.hidden = true; modalCtx = null; }
+document.getElementById('modalCancel').addEventListener('click', closeModal);
+overlay.addEventListener('click', e=>{ if(e.target===overlay) closeModal(); });
+addEventListener('keydown', e=>{ if(e.key==='Escape' && !overlay.hidden) closeModal(); });
+
+document.getElementById('modalSave').addEventListener('click', async ()=>{
+  if(!modalCtx) return;
+  const title = document.getElementById('fTitle').value.trim();
+  const text  = document.getElementById('fBody').value.trim();
+  if(!title){ document.getElementById('fTitle').focus(); return; }
+  const domain = document.getElementById('fDomain').value;
+  const {kind,id} = modalCtx;
+  if(kind==='vision'){
+    const horizon = document.getElementById('fHorizon').value;
+    if(id){ Object.assign(state.visions.find(x=>x.id===id), {title,note:text,domain,horizon}); }
+    else state.visions.push({id:uid(), title, note:text, domain, horizon});
+  }else if(kind==='project'){
+    const status = document.getElementById('fStatus').value;
+    if(id){ Object.assign(state.projects.find(x=>x.id===id), {title,note:text,domain,status}); }
+    else state.projects.push({id:uid(), title, note:text, domain, status});
+  }else if(kind==='libitem'){
+    const type = document.getElementById('fType').value;
+    const shelf = document.getElementById('fShelf').value;
+    const author = document.getElementById('fAuthor').value.trim();
+    const link = document.getElementById('fLink').value.trim();
+    if(id){ Object.assign(state.library.find(x=>x.id===id), {title,note:text,domain,type,shelf,author,link}); }
+    else state.library.push({id:uid(), title, note:text, domain, type, shelf, author, link});
+  }else{
+    if(id){ Object.assign(state.notes.find(x=>x.id===id), {title,body:text,domain}); }
+    else{
+      const dt = new Date();
+      const date = dt.getFullYear()+'.'+String(dt.getMonth()+1).padStart(2,'0')+'.'+String(dt.getDate()).padStart(2,'0');
+      state.notes.unshift({id:uid(), date, title, body:text, domain});
+    }
+  }
+  await saveState(); closeModal(); renderRoute();
+});
+
+/* ---------- delegated clicks ---------- */
+document.addEventListener('click', async e=>{
+  const row = e.target.closest('[data-domain]');
+  if(row){ selectDomain(row.dataset.domain); return; }
+  if(e.target.closest('[data-clear]')){ selected=null; renderRoute(); return; }
+
+  const addBtn = e.target.closest('[data-add]');
+  if(addBtn){ openModal(addBtn.dataset.add, null); return; }
+
+  const editBtn = e.target.closest('[data-edit]');
+  if(editBtn){
+    const kind = editBtn.dataset.edit;
+    const pool = kind==='vision'?state.visions:kind==='project'?state.projects:kind==='libitem'?state.library:state.notes;
+    openModal(kind, pool.find(x=>x.id===editBtn.dataset.id));
+    return;
+  }
+
+  const delBtn = e.target.closest('[data-del]');
+  if(delBtn){
+    if(!delBtn.classList.contains('confirm')){
+      delBtn.classList.add('confirm'); delBtn.textContent='CONFIRM?';
+      setTimeout(()=>{ delBtn.classList.remove('confirm'); delBtn.textContent='DELETE'; }, 2600);
+    }else{
+      state[delBtn.dataset.del] = state[delBtn.dataset.del].filter(x=>x.id!==delBtn.dataset.id);
+      await saveState();
+      if(delBtn.dataset.then) location.hash = delBtn.dataset.then;
+      else renderRoute();
+    }
+    return;
+  }
+});
+
+document.getElementById('editToggle').addEventListener('click', function(){
+  editMode = !editMode;
+  document.body.classList.toggle('edit', editMode);
+  this.classList.toggle('on', editMode);
+  this.setAttribute('aria-pressed', editMode);
+});
+
+/* ---------- export / import / reset ---------- */
+document.getElementById('exportBtn').addEventListener('click', ()=>{
+  const blob = new Blob([JSON.stringify(state,null,2)], {type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'orbital-station-data.json';
+  a.click();
+  URL.revokeObjectURL(a.href);
+});
+document.getElementById('importBtn').addEventListener('click', ()=>{
+  document.getElementById('importFile').click();
+});
+document.getElementById('importFile').addEventListener('change', async e=>{
+  const file = e.target.files[0]; if(!file) return;
+  try{
+    const parsed = JSON.parse(await file.text());
+    if(!parsed || !Array.isArray(parsed.visions) || !Array.isArray(parsed.projects) || !Array.isArray(parsed.notes)){
+      throw new Error('shape');
+    }
+    parsed.phases = Object.assign({}, SEED.phases, parsed.phases||{});
+    if(!Array.isArray(parsed.library)) parsed.library = [];
+    state = parsed;
+    await saveState(); renderRoute();
+  }catch(err){
+    document.getElementById('storageTag').innerHTML =
+      'IMPORT: <span class="warn">FILE NOT RECOGNIZED — EXPECTED AN EXPORT FROM THIS SITE</span>';
+  }
+  e.target.value = '';
+});
+document.getElementById('resetSeed').addEventListener('click', async function(){
+  if(!this.classList.contains('confirm')){
+    this.classList.add('confirm'); this.classList.add('warn');
+    this.textContent='REPLACE EVERYTHING?';
+    setTimeout(()=>{ this.classList.remove('confirm','warn'); this.textContent='RESTORE SAMPLE DATA'; }, 3000);
+  }else{
+    state = JSON.parse(JSON.stringify(SEED));
+    await saveState(); renderRoute();
+    this.classList.remove('confirm','warn'); this.textContent='RESTORE SAMPLE DATA';
+  }
+});
+
+/* ---------- boot ---------- */
+(async function init(){
+  fillDomainSelect();
+  state = await loadState();
+  if(!state){ state = JSON.parse(JSON.stringify(SEED)); await saveState(); }
+  if(!state.phases) state.phases = Object.assign({}, SEED.phases);
+  if(!Array.isArray(state.library)){
+    state.library = JSON.parse(JSON.stringify(SEED.library));
+    await saveState();
+  }
+  renderStorageTag();
+  updateClock(); setInterval(updateClock, 30000);
+  go();
+  if(!reduceMotion) requestAnimationFrame(drift);
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 420" width="800" height="420">
+  <rect width="800" height="420" fill="#2C3039"/>
+  <g fill="none" stroke-dasharray="2 5" stroke-opacity=".55" stroke-width="1.5">
+    <circle cx="400" cy="210" r="40" stroke="#7FA6C9"/>
+    <circle cx="400" cy="210" r="68" stroke="#C9A24B"/>
+    <circle cx="400" cy="210" r="96" stroke="#C97F5F"/>
+    <circle cx="400" cy="210" r="124" stroke="#9D8FD0"/>
+    <circle cx="400" cy="210" r="152" stroke="#D97A45"/>
+    <circle cx="400" cy="210" r="180" stroke="#8FAE8B"/>
+  </g>
+  <g stroke="#E9E5DA" stroke-width="1.5" fill="none">
+    <line x1="390" y1="210" x2="410" y2="210"/><line x1="400" y1="200" x2="400" y2="220"/>
+    <circle cx="400" cy="210" r="5"/>
+  </g>
+  <g stroke="#2C3039" stroke-width="2">
+    <circle cx="414" cy="172" r="7" fill="#7FA6C9"/>
+    <circle cx="459" cy="244" r="7" fill="#C9A24B"/>
+    <circle cx="470" cy="276" r="7" fill="#C97F5F"/>
+    <circle cx="338" cy="317" r="7" fill="#9D8FD0"/>
+    <circle cx="258" cy="162" r="7" fill="#D97A45"/>
+    <circle cx="384" cy="31" r="7" fill="#8FAE8B"/>
+  </g>
+  <text x="24" y="36" fill="#E9E5DA" fill-opacity=".5" font-family="monospace" font-size="13" letter-spacing="2">FIG. 1 — SYSTEM STATE</text>
+</svg>

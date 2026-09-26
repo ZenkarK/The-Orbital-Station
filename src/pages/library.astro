@@ -1,0 +1,85 @@
+---
+import Base from '../layouts/Base.astro';
+import SectionHead from '../components/SectionHead.astro';
+import { LIBRARY_SHELVES } from '../site.config';
+import { getLibrary } from '../lib/content';
+import { orbitById } from '../lib/orbits';
+
+const items = await getLibrary();
+const shelves = LIBRARY_SHELVES.filter((s) => items.some((i) => i.data.shelf === s));
+---
+
+<Base title="Library" description="The reading room and toolshed — books, papers, essays, and instruments that shape how this station thinks.">
+  <div class="page">
+    <SectionHead tag="SEC. D" />
+    <h1 class="title">The Library</h1>
+    <p class="sec-sub">
+      The reading room and toolshed — books, papers, essays, and instruments that shape how this station thinks.
+      Accessioned in the order they arrived; each holding is tied to the orbit it feeds.
+    </p>
+
+    {
+      shelves.length > 1 && (
+        <div class="filters" role="group" aria-label="Filter by shelf" data-shelf-filters>
+          <span class="filters-label">SHELF</span>
+          <button type="button" class="chip" data-v="" aria-pressed="true">ALL <span class="n">{items.length}</span></button>
+          {shelves.map((s) => (
+            <button type="button" class="chip" data-v={s} aria-pressed="false">
+              {s} <span class="n">{items.filter((i) => i.data.shelf === s).length}</span>
+            </button>
+          ))}
+        </div>
+      )
+    }
+
+    <div class="panel" style="margin-top:20px">
+      <div class="f-head lib-head" aria-hidden="true"><span>ACC.</span><span>HOLDING</span><span>SHELF</span></div>
+      {
+        items.length ? (
+          items.map((b, i) => {
+            const o = orbitById(b.data.orbit);
+            return (
+              <div class="lib" style={`border-left-color:${o.color}`} data-shelf={b.data.shelf}>
+                <span class="lib-no">{String(i + 1).padStart(3, '0')}</span>
+                <div>
+                  <div class="lib-line1">
+                    <span class="lib-type">{b.data.type}</span>
+                    <span class="lib-title">
+                      {b.data.link ? (
+                        <a href={b.data.link} target="_blank" rel="noopener noreferrer">
+                          {b.data.title}
+                          <span class="ext" aria-label="(opens in a new tab)">↗</span>
+                        </a>
+                      ) : (
+                        b.data.title
+                      )}
+                    </span>
+                    {b.data.author && <span class="lib-auth">{b.data.author}</span>}
+                  </div>
+                  {b.data.note && <p class="lib-note">{b.data.note}</p>}
+                </div>
+                <span class={`shelf ${b.data.shelf}`}>{b.data.shelf}</span>
+              </div>
+            );
+          })
+        ) : (
+          <p class="empty" style="border:none">SHELVES ARE BARE — THE FIRST HOLDING IS ON ITS WAY.</p>
+        )
+      }
+    </div>
+  </div>
+</Base>
+
+<script>
+  const bar = document.querySelector<HTMLElement>('[data-shelf-filters]');
+  if (bar) {
+    const rows = [...document.querySelectorAll<HTMLElement>('.lib[data-shelf]')];
+    bar.addEventListener('click', (e) => {
+      const b = (e.target as Element).closest<HTMLButtonElement>('button[data-v]');
+      if (!b) return;
+      const v = b.dataset.v!;
+      bar.querySelectorAll('button[data-v]').forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
+      rows.forEach((r) => (r.hidden = !!v && r.dataset.shelf !== v));
+    });
+  }
+</script>

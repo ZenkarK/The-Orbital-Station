@@ -1,0 +1,18 @@
+---
+import Base from '../layouts/Base.astro';
+import { href } from '../lib/util';
+---
+
+<Base title="Signal lost" description="This page has drifted out of range." noindex>
+  <div class="page lost">
+    <span class="eyebrow">ERROR · NO CARRIER</span>
+    <p class="code" aria-hidden="true">404</p>
+    <h1 class="title">Signal lost</h1>
+    <p>Whatever was here has drifted out of range — or was never on this frequency. The Bridge still has a fix on everything else.</p>
+    <div class="actions">
+      <a class="btn primary" href={href('/')}>RETURN TO BRIDGE</a>
+      <a class="btn" href={href('/transmissions/')}>TRANSMISSIONS</a>
+      <a class="btn" href={href('/search/')} data-search-open>SEARCH</a>
+    </div>
+  </div>
+</Base>

@@ -1,0 +1,54 @@
+---
+import SearchBox from './SearchBox.astro';
+---
+
+<dialog class="search-dlg" id="searchDialog" aria-label="Search the station">
+  <SearchBox id="dlg" dialog />
+</dialog>
+
+<script>
+  import { mountSearch } from '../scripts/search';
+
+  const dlg = document.getElementById('searchDialog') as HTMLDialogElement | null;
+  const box = dlg?.querySelector<HTMLElement>('[data-search-box]');
+
+  if (dlg && box && typeof dlg.showModal === 'function') {
+    const search = mountSearch(box);
+    const open = () => {
+      if (dlg.open) return;
+      dlg.showModal();
+      search.input.select();
+      search.focus();
+    };
+
+    document.querySelectorAll<HTMLAnchorElement>('[data-search-open]').forEach((a) =>
+      a.addEventListener('click', (e) => {
+        e.preventDefault();
+        open();
+      }),
+    );
+    dlg.querySelector('[data-search-close]')?.addEventListener('click', () => dlg.close());
+    // A search input swallows the first Esc to clear itself — close on the first press instead.
+    dlg.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        dlg.close();
+      }
+    });
+    dlg.addEventListener('click', (e) => {
+      if (e.target === dlg) dlg.close(); // backdrop click
+    });
+
+    document.addEventListener('keydown', (e) => {
+      const t = e.target as HTMLElement;
+      const typing = t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName);
+      if ((e.key === 'k' || e.key === 'K') && (e.metaKey || e.ctrlKey)) {
+        e.preventDefault();
+        dlg.open ? dlg.close() : open();
+      } else if (e.key === '/' && !typing && !e.metaKey && !e.ctrlKey && !e.altKey) {
+        e.preventDefault();
+        open();
+      }
+    });
+  }
+</script>

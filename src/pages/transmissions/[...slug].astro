@@ -1,0 +1,244 @@
+---
+import { render, getEntry } from 'astro:content';
+import { Image } from 'astro:assets';
+import Base from '../../layouts/Base.astro';
+import SectionHead from '../../components/SectionHead.astro';
+import TxItem from '../../components/TxItem.astro';
+import Sq from '../../components/Sq.astro';
+import { SITE, POST_KINDS } from '../../site.config';
+import { getPosts, type Post } from '../../lib/content';
+import { orbitById } from '../../lib/orbits';
+import { href, stationDate, isoDate, longDate, readingMinutes, slugify } from '../../lib/util';
+
+export async function getStaticPaths() {
+  const posts = await getPosts();
+  return posts.map((post, i) => {
+    const score = (p: Post) =>
+      (p.data.project && p.data.project.id === post.data.project?.id ? 3 : 0) +
+      p.data.tags.filter((t) => post.data.tags.includes(t)).length * 2 +
+      (p.data.orbit === post.data.orbit ? 1 : 0);
+    const related = posts
+      .filter((p) => p.id !== post.id)
+      .map((p) => ({ p, s: score(p) }))
+      .filter((x) => x.s > 0)
+      .sort((a, b) => b.s - a.s || b.p.data.date.valueOf() - a.p.data.date.valueOf())
+      .slice(0, 3)
+      .map((x) => x.p);
+    return {
+      params: { slug: post.id },
+      props: { post, newer: posts[i - 1], older: posts[i + 1], related },
+    };
+  });
+}
+
+interface Props {
+  post: Post;
+  newer?: Post;
+  older?: Post;
+  related: Post[];
+}
+const { post, newer, older, related } = Astro.props;
+const { title, date, updated, summary, orbit, kind, tags, cover, coverAlt, draft } = post.data;
+const { Content, headings } = await render(post);
+const project = post.data.project ? await getEntry(post.data.project) : undefined;
+const o = orbitById(orbit);
+const toc = headings.filter((h) => (h.depth === 2 || h.depth === 3) && h.slug !== 'footnote-label');
+const hasToc = toc.length >= 3;
+const minutes = readingMinutes(post.body);
+const url = new URL(Astro.url.pathname, Astro.site).href;
+
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'BlogPosting',
+  headline: title,
+  description: summary,
+  datePublished: date.toISOString(),
+  dateModified: (updated ?? date).toISOString(),
+  author: { '@type': 'Person', name: SITE.author, url: new URL(href('/observer/'), Astro.site).href },
+  publisher: { '@type': 'Person', name: SITE.author },
+  mainEntityOfPage: url,
+  keywords: tags.join(', '),
+  articleSection: o.name,
+};
+---
+
+<Base
+  title={title}
+  description={summary}
+  type="article"
+  published={date}
+  modified={updated}
+  tags={tags}
+  image={cover?.src}
+  imageAlt={coverAlt}
+  noindex={draft}
+>
+  <script slot="head" type="application/ld+json" set:html={JSON.stringify(jsonLd)} />
+  <article class="page">
+    <header class="post-head">
+      <a class="backlink" href={href('/transmissions/')}>← ALL TRANSMISSIONS</a>
+      <div class="post-meta">
+        <Sq orbit={orbit} />
+        <a href={href(`/orbits/${orbit}/`)}>{o.name}</a>
+        <span class="sep">·</span>
+        <a href={href(`/transmissions/?kind=${kind}`)}>{POST_KINDS[kind]}</a>
+        <span class="sep">·</span>
+        <time datetime={isoDate(date)} title={longDate(date)}>{stationDate(date)}</time>
+        <span class="sep">·</span>
+        <span>{minutes} MIN READ</span>
+        {draft && <span class="draft-badge">DRAFT — NOT PUBLISHED</span>}
+      </div>
+      <h1 class="post-title">{title}</h1>
+      <p class="post-dek">{summary}</p>
+      {
+        project && (
+          <a class="post-mission" href={href(`/log/${project.id}/`)}>
+            <Sq orbit={project.data.orbit} />
+            FILED UNDER MISSION <b>{project.data.title.toUpperCase()}</b> →
+          </a>
+        )
+      }
+    </header>
+
+    {
+      cover && (
+        <figure class="post-cover">
+          <Image src={cover} alt={coverAlt ?? ''} widths={[640, 960, 1280, 1920]} sizes="(max-width: 1140px) 100vw, 1140px" />
+        </figure>
+      )
+    }
+
+    <div class:list={['post-grid', { 'has-toc': hasToc }]}>
+      <div>
+        <div class="prose" data-prose>
+          <Content />
+        </div>
+
+        <p class="post-end" aria-hidden="true">END OF TRANSMISSION</p>
+
+        <footer class="post-foot">
+          {
+            tags.length > 0 && (
+              <>
+                <span class="label">TAGS</span>
+                {tags.map((t) => (
+                  <a class="tag-link" href={href(`/tags/${slugify(t)}/`)}>
+                    #{t}
+                  </a>
+                ))}
+              </>
+            )
+          }
+          {
+            updated && (
+              <span class="label">
+                UPDATED <time datetime={isoDate(updated)}>{stationDate(updated)}</time>
+              </span>
+            )
+          }
+        </footer>
+      </div>
+
+      {
+        hasToc && (
+          <nav class="toc" aria-label="Contents">
+            <h2>CONTENTS</h2>
+            <ol>
+              {toc.map((h) => (
+                <li class={`d${h.depth}`}>
+                  <a href={`#${h.slug}`}>{h.text}</a>
+                </li>
+              ))}
+            </ol>
+          </nav>
+        )
+      }
+    </div>
+
+    {
+      (older || newer) && (
+        <nav class="pn" aria-label="More transmissions">
+          {older && (
+            <a class="panel prev" href={href(`/transmissions/${older.id}/`)}>
+              <small>← OLDER</small>
+              <span>{older.data.title}</span>
+            </a>
+          )}
+          {newer && (
+            <a class="panel next" href={href(`/transmissions/${newer.id}/`)}>
+              <small>NEWER →</small>
+              <span>{newer.data.title}</span>
+            </a>
+          )}
+        </nav>
+      )
+    }
+
+    {
+      related.length > 0 && (
+        <section class="block" aria-labelledby="related-h">
+          <SectionHead tag="ON A NEARBY ORBIT" />
+          <h2 id="related-h" class="sr-only">Related transmissions</h2>
+          <div class="tx-list">
+            {related.map((p) => (
+              <TxItem post={p} />
+            ))}
+          </div>
+        </section>
+      )
+    }
+  </article>
+</Base>
+
+<script>
+  /* Code blocks: language label + copy button. */
+  document.querySelectorAll<HTMLPreElement>('[data-prose] pre').forEach((pre) => {
+    const wrap = document.createElement('div');
+    wrap.className = 'code-wrap';
+    const bar = document.createElement('div');
+    bar.className = 'code-bar';
+    const lang = pre.dataset.language && pre.dataset.language !== 'plaintext' ? pre.dataset.language : 'text';
+    const label = document.createElement('span');
+    label.textContent = lang;
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.textContent = 'COPY';
+    btn.setAttribute('aria-label', `Copy ${lang} code`);
+    btn.addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(pre.innerText.replace(/\n$/, ''));
+        btn.textContent = 'COPIED';
+      } catch {
+        btn.textContent = 'SELECT + COPY';
+      }
+      setTimeout(() => (btn.textContent = 'COPY'), 1800);
+    });
+    bar.append(label, btn);
+    pre.replaceWith(wrap);
+    wrap.append(bar, pre);
+  });
+
+  /* Contents: highlight the section being read (the last heading above the reading line). */
+  const tocLinks = [...document.querySelectorAll<HTMLAnchorElement>('.toc a')];
+  if (tocLinks.length) {
+    const targets = tocLinks
+      .map((a) => document.getElementById(decodeURIComponent(a.hash.slice(1))))
+      .filter((el): el is HTMLElement => !!el);
+    let queued = false;
+    const update = () => {
+      queued = false;
+      const line = Math.min(200, innerHeight * 0.3);
+      let current = targets[0];
+      for (const t of targets) if (t.getBoundingClientRect().top <= line) current = t;
+      tocLinks.forEach((a) => a.classList.toggle('active', decodeURIComponent(a.hash.slice(1)) === current?.id));
+    };
+    addEventListener(
+      'scroll',
+      () => {
+        if (!queued) (queued = true), requestAnimationFrame(update);
+      },
+      { passive: true },
+    );
+    update();
+  }
+</script>

@@ -1,0 +1,35 @@
+# TRAJECTORIES — the vision board. Each card is a planned burn.
+#
+#   horizon: NOW | THIS YEAR | SOMEDAY
+#   orbit:   systems | markets | craft | astro | venture | words
+#   reached: true   ← set once you arrive; the card stays, stamped REACHED
+
+- id: senior-systems-engineer
+  title: Senior Systems Engineer
+  orbit: systems
+  horizon: THIS YEAR
+  note: The next stable orbit at work — scope, judgment, and the title that matches them.
+
+- id: helios-flies-real-capital
+  title: Helios flies real capital
+  orbit: markets
+  horizon: THIS YEAR
+  note: Graduate the bot from paper to a small live book, behind risk rails it cannot cross.
+
+- id: bortle-1-night
+  title: A Bortle-1 night
+  orbit: astro
+  horizon: SOMEDAY
+  note: The Milky Way core from a truly dark site, camera on a tracker, nowhere to be at dawn.
+
+- id: aliveness-pursuits
+  title: Three to five aliveness pursuits
+  orbit: craft
+  horizon: NOW
+  note: Chosen deliberately each year. Escaped into, not studied.
+
+- id: twelve-transmissions
+  title: Twelve transmissions
+  orbit: words
+  horizon: THIS YEAR
+  note: One honest essay a month, published here, whether or not anyone is listening.

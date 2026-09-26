@@ -1,0 +1,117 @@
+---
+import Base from '../layouts/Base.astro';
+import Orrery from '../components/Orrery.astro';
+import SectionHead from '../components/SectionHead.astro';
+import TxItem from '../components/TxItem.astro';
+import MissionCard from '../components/MissionCard.astro';
+import { SITE, ORBITS } from '../site.config';
+import { getPosts, getProjects, getLibrary, getTrajectories, postsForProject } from '../lib/content';
+import { rankedOrbits } from '../lib/orbits';
+import { href, two } from '../lib/util';
+
+const [posts, projects, library, trajectories] = await Promise.all([
+  getPosts(),
+  getProjects(),
+  getLibrary(),
+  getTrajectories(),
+]);
+
+const counts = Object.fromEntries(
+  ORBITS.map((o) => [
+    o.id,
+    posts.filter((p) => p.data.orbit === o.id).length +
+      projects.filter((p) => p.data.orbit === o.id).length +
+      library.filter((l) => l.data.orbit === o.id).length +
+      trajectories.filter((t) => t.data.orbit === o.id).length,
+  ]),
+);
+const latest = posts.slice(0, 4);
+const active = projects.filter((p) => p.data.status === 'ACTIVE');
+const near = rankedOrbits()
+  .slice(0, 2)
+  .map((r) => r.orbit.name)
+  .join(' · ');
+const year = new Date().getUTCFullYear();
+---
+
+<Base>
+  <div class="page">
+    <span class="eyebrow">THE ORBITAL MODEL · OPERATIONS · {year}</span>
+    <h1 class="hero-title">Six orbits.<span class="ghost">One center of mass.</span></h1>
+    <p class="lede">
+      I don't balance a life — I phase it. Six domains each hold their own track around a fixed center; some run
+      close and hot this season, some swing wide and quiet. The orrery below isn't a picture of the idea. It's the
+      control.
+    </p>
+    <div class="constants">
+      <b>GOVERNING&nbsp;CONSTANTS</b>
+      {SITE.constants.map((c) => <span>{c}</span>)}
+    </div>
+
+    <Orrery counts={counts} />
+
+    <section class="block" aria-labelledby="incoming">
+      <SectionHead tag="INCOMING" link={{ href: '/transmissions/', label: 'ALL TRANSMISSIONS →' }} />
+      <h2 id="incoming" class="sr-only">Latest transmissions</h2>
+      {
+        latest.length ? (
+          <div class="tx-list">
+            {latest.map((post) => (
+              <TxItem post={post} />
+            ))}
+          </div>
+        ) : (
+          <p class="empty">CHANNEL QUIET — THE FIRST TRANSMISSION IS STILL BEING WRITTEN.</p>
+        )
+      }
+    </section>
+
+    <section class="block" aria-labelledby="missions">
+      <SectionHead tag="MISSIONS ACTIVE" link={{ href: '/log/', label: 'FULL FLIGHT LOG →' }} />
+      <h2 id="missions" class="sr-only">Active missions</h2>
+      {
+        active.length ? (
+          <div class="mission-cards">
+            {active.map((p) => (
+              <MissionCard project={p} txCount={postsForProject(posts, p.id).length} />
+            ))}
+          </div>
+        ) : (
+          <p class="empty">PAD IS CLEAR — NO MISSIONS IN FLIGHT.</p>
+        )
+      }
+    </section>
+
+    <section class="block" aria-labelledby="telemetry">
+      <SectionHead tag="TELEMETRY" />
+      <h2 id="telemetry" class="sr-only">Station telemetry</h2>
+      <div class="digest">
+        <a class="panel" href={href('/transmissions/')}>
+          <span class="d-tag">TRANSMISSIONS SENT</span>
+          <span class="d-big">{two(posts.length)}</span>
+          <p class="d-sub">essays, build logs &amp; field notes</p>
+        </a>
+        <a class="panel" href={href('/log/')}>
+          <span class="d-tag">MISSIONS ACTIVE</span>
+          <span class="d-big">{two(active.length)}</span>
+          <p class="d-sub">of {projects.length} logged in the Flight Log</p>
+        </a>
+        <a class="panel" href={href('/library/')}>
+          <span class="d-tag">LIBRARY HOLDINGS</span>
+          <span class="d-big">{two(library.length)}</span>
+          <p class="d-sub">books, papers &amp; tools on the shelves</p>
+        </a>
+        <a class="panel" href={href('/trajectories/')}>
+          <span class="d-tag">TRAJECTORIES PLOTTED</span>
+          <span class="d-big">{two(trajectories.length)}</span>
+          <p class="d-sub">destinations on the board</p>
+        </a>
+        <a class="panel" href={href('/manual/')}>
+          <span class="d-tag">RUNNING NEAR</span>
+          <span class="d-big" style="font-size:17px;line-height:1.3">{near}</span>
+          <p class="d-sub">what this season is for</p>
+        </a>
+      </div>
+    </section>
+  </div>
+</Base>

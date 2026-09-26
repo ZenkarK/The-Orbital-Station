@@ -1,0 +1,343 @@
+---
+/* The Bridge orrery: server-rendered at the logged phase (works without JS),
+   then enhanced client-side — drag, keyboard, focus, reset. Nothing a visitor
+   moves is saved; the logged state lives in site.config.ts. */
+import { ORBITS, PHASE_LOGGED } from '../site.config';
+import { clockToDeg, proximity } from '../lib/orbits';
+import { href, longDate } from '../lib/util';
+
+interface Props {
+  /** Items linked to each orbit (posts + missions + holdings + trajectories). */
+  counts: Record<string, number>;
+}
+const { counts } = Astro.props;
+
+const C = 320;
+const rad = (d: number) => (d * Math.PI) / 180;
+const bodies = ORBITS.map((o) => {
+  const deg = clockToDeg(o.clock);
+  const pct = Math.round(proximity(deg) * 100);
+  const a = rad(deg);
+  const lx = C + Math.cos(a) * (o.r + 22);
+  return {
+    ...o,
+    deg,
+    pct,
+    x: C + Math.cos(a) * o.r,
+    y: C + Math.sin(a) * o.r,
+    lx,
+    ly: C + Math.sin(a) * (o.r + 22) + 3,
+    anchor: lx < C - 12 ? 'end' : lx > C + 12 ? 'start' : 'middle',
+    url: href(`/orbits/${o.id}/`),
+    count: counts[o.id] ?? 0,
+  };
+});
+const ranked = [...bodies].sort((a, b) => b.pct - a.pct);
+/* Hide the NEAR / FAR markers when a body's label would sit on top of them. */
+const crowds = (y: number) => bodies.some((b) => Math.abs(b.lx - C) < 80 && Math.abs(b.ly - y) < 30);
+const logged = longDate(new Date(PHASE_LOGGED));
+const defaultCaption = `Phase is honest scheduling: whatever sits near 12 o'clock is what this season is actually for. Logged ${logged}.`;
+const data = bodies.map(({ id, name, color, r, deg, desc, url, count, clock }) => ({ id, name, color, r, deg, desc, url, count, clock }));
+---
+
+<div class="panel reg orrery-panel" data-orrery>
+  <div class="orrery-hint">
+    <span>FIG. 1 — SYSTEM STATE · LOGGED {PHASE_LOGGED.replaceAll('-', '.')}</span>
+    <span>DRAG A BODY TO PLAY · TAP TO FOCUS · 12 O'CLOCK = NEAR</span>
+  </div>
+  <div class="orrery-grid">
+    <svg
+      class="orrery"
+      viewBox="0 0 640 640"
+      role="group"
+      aria-label="Orrery of six life domains. Each body's distance from 12 o'clock shows how much of this season it gets. Focus a body and use the arrow keys to move it."
+    >
+      <text x={C} y="26" text-anchor="middle" class="apsis" data-apsis="26" opacity={crowds(26) ? 0 : 1}>NEAR</text>
+      <text x={C} y="624" text-anchor="middle" class="apsis" data-apsis="624" opacity={crowds(624) ? 0 : 1}>FAR</text>
+      <line x1={C} y1="34" x2={C} y2="44" class="tick"></line>
+      {bodies.map((b) => <circle class="track" cx={C} cy={C} r={b.r} stroke={b.color} data-track={b.id} />)}
+      <g>
+        <line x1={C - 10} y1={C} x2={C + 10} y2={C} class="center"></line>
+        <line x1={C} y1={C - 10} x2={C} y2={C + 10} class="center"></line>
+        <circle cx={C} cy={C} r="5.5" class="center"></circle>
+      </g>
+      {
+        bodies.map((b) => (
+          <circle
+            class="body"
+            cx={b.x.toFixed(2)}
+            cy={b.y.toFixed(2)}
+            r="9"
+            fill={b.color}
+            data-body={b.id}
+            tabindex="0"
+            role="slider"
+            aria-label={`${b.name} phase`}
+            aria-valuemin="0"
+            aria-valuemax="100"
+            aria-valuenow={b.pct}
+            aria-valuetext={`${b.pct}% near, ${b.clock} o'clock`}
+          />
+        ))
+      }
+      {
+        bodies.map((b) => (
+          <text class="blabel" x={b.lx.toFixed(2)} y={b.ly.toFixed(2)} text-anchor={b.anchor} data-label={b.id}>
+            {b.name}
+          </text>
+        ))
+      }
+    </svg>
+    <div>
+      <div class="state-list" data-state-list>
+        {
+          ranked.map((b) => (
+            <button type="button" class="state-row" data-orbit={b.id} aria-pressed="false">
+              <span class="sq" style={`background:${b.color}`} />
+              <span>
+                {b.name}
+                <span class="bar-wrap">
+                  <span class="bar-fill" style={`width:${b.pct}%;color:${b.color}`} />
+                </span>
+              </span>
+              <span class="pct">{b.pct}%</span>
+            </button>
+          ))
+        }
+      </div>
+      <p class="state-caption" data-caption aria-live="polite">{defaultCaption}</p>
+      <button type="button" class="btn orrery-reset" data-reset hidden>RESET TO LOGGED STATE</button>
+    </div>
+  </div>
+  <script type="application/json" data-orrery-data set:html={JSON.stringify({ bodies: data, defaultCaption })} />
+</div>
+
+<script>
+  type Body = { id: string; name: string; color: string; r: number; deg: number; desc: string; url: string; count: number; clock: string };
+
+  const root = document.querySelector<HTMLElement>('[data-orrery]');
+  if (root) init(root);
+
+  function init(root: HTMLElement) {
+    const { bodies, defaultCaption } = JSON.parse(root.querySelector('[data-orrery-data]')!.textContent!) as {
+      bodies: Body[];
+      defaultCaption: string;
+    };
+    const svg = root.querySelector<SVGSVGElement>('svg')!;
+    const list = root.querySelector<HTMLElement>('[data-state-list]')!;
+    const caption = root.querySelector<HTMLElement>('[data-caption]')!;
+    const reset = root.querySelector<HTMLButtonElement>('[data-reset]')!;
+    const C = 320;
+    const rad = (d: number) => (d * Math.PI) / 180;
+    const prox = (d: number) => Math.round(((1 - Math.sin(rad(d))) / 2) * 100);
+    const toClock = (d: number) => {
+      let h = (((d + 90) / 30) % 12 + 12) % 12;
+      let hh = Math.floor(h);
+      let mm = Math.round((h - hh) * 60);
+      if (mm === 60) (hh += 1), (mm = 0);
+      return `${hh % 12 || 12}:${String(mm).padStart(2, '0')}`;
+    };
+    const logged = Object.fromEntries(bodies.map((b) => [b.id, b.deg]));
+    const phase: Record<string, number> = { ...logged };
+    const bodyEl = (id: string) => svg.querySelector<SVGCircleElement>(`[data-body="${id}"]`)!;
+    const labelEl = (id: string) => svg.querySelector<SVGTextElement>(`[data-label="${id}"]`)!;
+    const trackEl = (id: string) => svg.querySelector<SVGCircleElement>(`[data-track="${id}"]`)!;
+    let selected: string | null = null;
+    let touched = false;
+
+    function position() {
+      for (const b of bodies) {
+        const a = rad(phase[b.id]);
+        const el = bodyEl(b.id);
+        el.setAttribute('cx', (C + Math.cos(a) * b.r).toFixed(2));
+        el.setAttribute('cy', (C + Math.sin(a) * b.r).toFixed(2));
+        const p = prox(phase[b.id]);
+        el.setAttribute('aria-valuenow', String(p));
+        el.setAttribute('aria-valuetext', `${p}% near, ${toClock(phase[b.id])} o'clock`);
+        const lx = C + Math.cos(a) * (b.r + 22);
+        const lab = labelEl(b.id);
+        lab.setAttribute('x', lx.toFixed(2));
+        lab.setAttribute('y', (C + Math.sin(a) * (b.r + 22) + 3).toFixed(2));
+        lab.setAttribute('text-anchor', lx < C - 12 ? 'end' : lx > C + 12 ? 'start' : 'middle');
+        lab.classList.toggle('dim', !!selected && selected !== b.id);
+        trackEl(b.id).classList.toggle('sel', selected === b.id);
+      }
+      svg.querySelectorAll<SVGTextElement>('[data-apsis]').forEach((t) => {
+        const y = Number(t.dataset.apsis);
+        const crowded = bodies.some((b) => {
+          const a = rad(phase[b.id]);
+          return Math.abs(Math.cos(a) * (b.r + 22)) < 80 && Math.abs(C + Math.sin(a) * (b.r + 22) + 3 - y) < 30;
+        });
+        t.setAttribute('opacity', crowded ? '0' : '1');
+      });
+    }
+
+    function renderList() {
+      const rows = bodies.map((b) => ({ b, p: prox(phase[b.id]) })).sort((x, y) => y.p - x.p);
+      list.innerHTML = rows
+        .map(
+          ({ b, p }) =>
+            `<button type="button" class="state-row" data-orbit="${b.id}" aria-pressed="${selected === b.id}">` +
+            `<span class="sq" style="background:${b.color}"></span>` +
+            `<span>${b.name}<span class="bar-wrap"><span class="bar-fill" style="width:${p}%;color:${b.color}"></span></span></span>` +
+            `<span class="pct">${p}%</span></button>`,
+        )
+        .join('');
+    }
+
+    function renderCaption() {
+      if (!selected) {
+        caption.textContent = touched
+          ? "You're flying the orrery now — nothing you move here is saved. Reset to see the logged state."
+          : defaultCaption;
+        return;
+      }
+      const b = bodies.find((x) => x.id === selected)!;
+      const p = prox(phase[b.id]);
+      caption.innerHTML =
+        `<b>${b.name} · ${p}% NEAR · ${toClock(phase[b.id])} · ${b.count} LINKED</b><br>` +
+        `${b.desc}<br><a href="${b.url}">OPEN THE ${b.name} ORBIT →</a>`;
+    }
+
+    function select(id: string | null) {
+      selected = selected === id ? null : id;
+      position();
+      renderList();
+      renderCaption();
+    }
+
+    function markTouched() {
+      if (!touched) {
+        touched = true;
+        reset.hidden = false;
+      }
+    }
+
+    /* --- pointer: generous hit areas so bodies are easy to grab on touch --- */
+    let dragging: string | null = null;
+    let moved = false;
+    const toSvg = (ev: PointerEvent) => {
+      const r = svg.getBoundingClientRect();
+      return { x: ((ev.clientX - r.left) * 640) / r.width, y: ((ev.clientY - r.top) * 640) / r.height };
+    };
+    svg.addEventListener('pointerdown', (ev) => {
+      const p = toSvg(ev);
+      let best: string | null = null;
+      let bestD = 30;
+      for (const b of bodies) {
+        const a = rad(phase[b.id]);
+        const d = Math.hypot(p.x - (C + Math.cos(a) * b.r), p.y - (C + Math.sin(a) * b.r));
+        if (d < bestD) (bestD = d), (best = b.id);
+      }
+      if (best) {
+        ev.preventDefault();
+        dragging = best;
+        moved = false;
+        svg.classList.add('dragging');
+        svg.setPointerCapture(ev.pointerId);
+      } else if (Math.hypot(p.x - C, p.y - C) < 22 && selected) {
+        select(null);
+      }
+    });
+    svg.addEventListener('pointermove', (ev) => {
+      if (!dragging) return;
+      const p = toSvg(ev);
+      const a = (Math.atan2(p.y - C, p.x - C) * 180) / Math.PI;
+      if (!moved && Math.abs(((a - phase[dragging] + 540) % 360) - 180) > 1.5) moved = true;
+      if (moved) {
+        phase[dragging] = a;
+        markTouched();
+        position();
+        renderList();
+      }
+    });
+    const end = () => {
+      if (!dragging) return;
+      const id = dragging;
+      dragging = null;
+      svg.classList.remove('dragging');
+      if (moved) renderCaption();
+      else select(id);
+    };
+    svg.addEventListener('pointerup', end);
+    svg.addEventListener('pointercancel', end);
+
+    /* --- keyboard: arrows move a focused body, Enter/Space focuses its orbit --- */
+    svg.addEventListener('keydown', (ev) => {
+      const id = (ev.target as Element).getAttribute('data-body');
+      if (!id) return;
+      const step = ev.shiftKey ? 15 : 5;
+      if (['ArrowRight', 'ArrowDown'].includes(ev.key)) phase[id] += step;
+      else if (['ArrowLeft', 'ArrowUp'].includes(ev.key)) phase[id] -= step;
+      else if (ev.key === 'Enter' || ev.key === ' ') {
+        ev.preventDefault();
+        select(id);
+        return;
+      } else return;
+      ev.preventDefault();
+      markTouched();
+      position();
+      renderList();
+      renderCaption();
+    });
+
+    list.addEventListener('click', (ev) => {
+      const row = (ev.target as Element).closest<HTMLElement>('[data-orbit]');
+      if (row) select(row.dataset.orbit!);
+    });
+
+    /* --- reset / intro animation --- */
+    const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    function animateTo(
+      target: Record<string, number>,
+      from: Record<string, number>,
+      { shortest = true, done }: { shortest?: boolean; done?: () => void } = {},
+    ) {
+      if (reduce) {
+        Object.assign(phase, target);
+        position();
+        renderList();
+        done?.();
+        return;
+      }
+      const t0 = performance.now();
+      const frame = (t: number) => {
+        let running = false;
+        bodies.forEach((b, i) => {
+          const dur = 1100 + i * 140;
+          const k = Math.min(1, (t - t0) / dur);
+          if (k < 1) running = true;
+          const e = 1 - Math.pow(1 - k, 3);
+          const raw = target[b.id] - from[b.id];
+          const delta = shortest ? ((raw % 360) + 540) % 360 - 180 : raw;
+          phase[b.id] = from[b.id] + delta * e;
+        });
+        position();
+        renderList();
+        if (running) requestAnimationFrame(frame);
+        else {
+          Object.assign(phase, target);
+          position();
+          renderList();
+          done?.();
+        }
+      };
+      requestAnimationFrame(frame);
+    }
+
+    reset.addEventListener('click', () => {
+      touched = false;
+      reset.hidden = true;
+      animateTo(logged, { ...phase }, { done: renderCaption });
+      renderCaption();
+    });
+
+    // Bodies swing clockwise into their logged positions on arrival.
+    if (!reduce) {
+      const intro = Object.fromEntries(bodies.map((b, i) => [b.id, logged[b.id] - 140 - i * 12]));
+      Object.assign(phase, intro);
+      position();
+      animateTo(logged, intro, { shortest: false });
+    }
+  }
+</script>

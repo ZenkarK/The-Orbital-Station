@@ -1,0 +1,30 @@
+---
+interface Props {
+  id: string;
+  /** Show the ESC hint (dialog only). */
+  dialog?: boolean;
+}
+const { id, dialog = false } = Astro.props;
+---
+
+<div class="search-box" data-search-box>
+  <div class="search-field">
+    <label for={`${id}-q`}>QUERY ›</label>
+    <input
+      id={`${id}-q`}
+      type="search"
+      name="q"
+      placeholder="Search transmissions, missions, the library…"
+      autocomplete="off"
+      spellcheck="false"
+      data-search-input
+    />
+    {dialog && <button type="button" class="esc" data-search-close aria-label="Close search">ESC</button>}
+  </div>
+  <p class="sr-only" aria-live="polite" data-search-status></p>
+  <ul class="search-results" data-search-results></ul>
+  <p class="search-note" data-search-note>Type to search every transmission, mission, library holding and trajectory.</p>
+  <div class="search-foot" aria-hidden="true">
+    <span>↑↓ MOVE</span><span>↵ OPEN</span>{dialog && <span>ESC CLOSE</span>}
+  </div>
+</div>

@@ -1,0 +1,156 @@
+---
+import Base from '../../layouts/Base.astro';
+import SectionHead from '../../components/SectionHead.astro';
+import TxItem from '../../components/TxItem.astro';
+import Sq from '../../components/Sq.astro';
+import { ORBITS, POST_KINDS, type PostKind } from '../../site.config';
+import { getPosts, getTags } from '../../lib/content';
+import { href } from '../../lib/util';
+
+const posts = await getPosts();
+const tags = await getTags();
+
+const byYear = new Map<number, typeof posts>();
+for (const p of posts) {
+  const y = p.data.date.getUTCFullYear();
+  if (!byYear.has(y)) byYear.set(y, []);
+  byYear.get(y)!.push(p);
+}
+const orbitsUsed = ORBITS.filter((o) => posts.some((p) => p.data.orbit === o.id));
+const kindsUsed = (Object.keys(POST_KINDS) as PostKind[]).filter((k) => posts.some((p) => p.data.kind === k));
+const showFilters = posts.length > 1 && (orbitsUsed.length > 1 || kindsUsed.length > 1);
+---
+
+<Base title="Transmissions" description="Essays, build logs and field notes sent down from the station — on systems, markets, craft, astrophysics, ventures and words.">
+  <div class="page">
+    <SectionHead tag="SEC. C" />
+    <h1 class="title">Transmissions</h1>
+    <p class="sec-sub">
+      Essays, build logs and field notes, sent down from the station. Everything I'm building and learning ends up
+      here eventually.
+    </p>
+
+    {
+      showFilters && (
+        <div data-filters>
+          <div class="filters" role="group" aria-label="Filter by orbit">
+            <span class="filters-label">ORBIT</span>
+            <button type="button" class="chip" data-f="orbit" data-v="" aria-pressed="true">ALL</button>
+            {orbitsUsed.map((o) => (
+              <button type="button" class="chip" data-f="orbit" data-v={o.id} aria-pressed="false">
+                <Sq orbit={o.id} />
+                {o.name}
+              </button>
+            ))}
+          </div>
+          {kindsUsed.length > 1 && (
+            <div class="filters" role="group" aria-label="Filter by kind">
+              <span class="filters-label">KIND</span>
+              <button type="button" class="chip" data-f="kind" data-v="" aria-pressed="true">ALL</button>
+              {kindsUsed.map((k) => (
+                <button type="button" class="chip" data-f="kind" data-v={k} aria-pressed="false">
+                  {POST_KINDS[k]}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )
+    }
+    <p class="filter-status" aria-live="polite" data-count>
+      {posts.length} TRANSMISSION{posts.length === 1 ? '' : 'S'}
+    </p>
+
+    {
+      posts.length === 0 && (
+        <p class="empty">CHANNEL QUIET — THE FIRST TRANSMISSION IS STILL BEING WRITTEN.</p>
+      )
+    }
+    <p class="empty" data-none hidden>
+      NOTHING ON THIS FREQUENCY YET — <a href={href('/transmissions/')} data-clear>CLEAR FILTERS</a>
+    </p>
+
+    {
+      [...byYear].map(([year, list]) => (
+        <section class="year-group" data-year>
+          <h2 class="year-label">{year}</h2>
+          <div class="tx-list">
+            {list.map((post) => (
+              <TxItem post={post} />
+            ))}
+          </div>
+        </section>
+      ))
+    }
+
+    {
+      tags.length > 0 && (
+        <section class="block" aria-labelledby="tags-h">
+          <SectionHead tag="TAGS" link={{ href: '/tags/', label: 'ALL TAGS →' }} />
+          <h2 id="tags-h" class="sr-only">Tags</h2>
+          <div class="tag-cloud">
+            {tags.map((t) => (
+              <a class="chip" href={href(`/tags/${t.slug}/`)}>
+                #{t.tag} <span class="n">{t.posts.length}</span>
+              </a>
+            ))}
+          </div>
+        </section>
+      )
+    }
+  </div>
+</Base>
+
+<script>
+  const wrap = document.querySelector<HTMLElement>('[data-filters]');
+  if (wrap) {
+    const items = [...document.querySelectorAll<HTMLElement>('article.tx')];
+    const groups = [...document.querySelectorAll<HTMLElement>('[data-year]')];
+    const count = document.querySelector<HTMLElement>('[data-count]')!;
+    const none = document.querySelector<HTMLElement>('[data-none]')!;
+    const state = { orbit: '', kind: '' };
+
+    const params = new URLSearchParams(location.search);
+    for (const f of ['orbit', 'kind'] as const) {
+      const v = params.get(f) ?? '';
+      if (wrap.querySelector(`[data-f="${f}"][data-v="${CSS.escape(v)}"]`)) state[f] = v;
+    }
+
+    function apply(push = false) {
+      wrap!.querySelectorAll<HTMLButtonElement>('[data-f]').forEach((b) =>
+        b.setAttribute('aria-pressed', String(state[b.dataset.f as 'orbit' | 'kind'] === b.dataset.v)),
+      );
+      let shown = 0;
+      for (const el of items) {
+        const ok = (!state.orbit || el.dataset.orbit === state.orbit) && (!state.kind || el.dataset.kind === state.kind);
+        el.hidden = !ok;
+        if (ok) shown++;
+      }
+      for (const g of groups) g.hidden = !g.querySelector('article.tx:not([hidden])');
+      none.hidden = shown > 0;
+      const filtered = state.orbit || state.kind;
+      count.textContent = `${shown} TRANSMISSION${shown === 1 ? '' : 'S'}${filtered ? ' ON THIS FREQUENCY' : ''}`;
+      if (push) {
+        const q = new URLSearchParams();
+        if (state.orbit) q.set('orbit', state.orbit);
+        if (state.kind) q.set('kind', state.kind);
+        const qs = q.toString();
+        history.replaceState(null, '', qs ? `?${qs}` : location.pathname);
+      }
+    }
+
+    wrap.addEventListener('click', (e) => {
+      const b = (e.target as Element).closest<HTMLButtonElement>('[data-f]');
+      if (!b) return;
+      const f = b.dataset.f as 'orbit' | 'kind';
+      state[f] = state[f] === b.dataset.v ? '' : b.dataset.v!;
+      apply(true);
+    });
+    none.querySelector('[data-clear]')?.addEventListener('click', (e) => {
+      e.preventDefault();
+      state.orbit = state.kind = '';
+      apply(true);
+    });
+    apply();
+  }
+</script>

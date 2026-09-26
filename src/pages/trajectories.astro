@@ -1,0 +1,61 @@
+---
+import Base from '../layouts/Base.astro';
+import SectionHead from '../components/SectionHead.astro';
+import Sq from '../components/Sq.astro';
+import { HORIZONS } from '../site.config';
+import { getTrajectories } from '../lib/content';
+import { orbitById } from '../lib/orbits';
+import { href, two } from '../lib/util';
+
+const all = await getTrajectories();
+// Nearest horizon first; reached cards sink to the end of their horizon.
+const items = all
+  .map((t, i) => ({ t, i }))
+  .sort(
+    (a, b) =>
+      HORIZONS.indexOf(a.t.data.horizon) - HORIZONS.indexOf(b.t.data.horizon) ||
+      Number(a.t.data.reached) - Number(b.t.data.reached) ||
+      a.i - b.i,
+  )
+  .map((x) => x.t);
+---
+
+<Base title="Trajectories" description="The vision board, held to mission standards — destinations with enough pull to steer the ordinary weeks.">
+  <div class="page">
+    <SectionHead tag="SEC. A" />
+    <h1 class="title">Trajectories</h1>
+    <p class="sec-sub">
+      The vision board, held to mission standards: each card is a planned burn — a destination with enough pull to
+      steer the ordinary weeks.
+    </p>
+    <div class="traj-grid">
+      {
+        items.length ? (
+          items.map((t, i) => {
+            const o = orbitById(t.data.orbit);
+            return (
+              <article class:list={['panel traj', { reached: t.data.reached }]}>
+                {t.data.reached && <span class="stamp">REACHED</span>}
+                <span class="traj-num" aria-hidden="true">
+                  {two(i + 1)}
+                </span>
+                <h2>{t.data.title}</h2>
+                <p>{t.data.note}</p>
+                <div class="traj-foot">
+                  <a href={href(`/orbits/${o.id}/`)}>
+                    <Sq orbit={o.id} />
+                    {o.name}
+                  </a>
+                  <span>·</span>
+                  <span>{t.data.horizon}</span>
+                </div>
+              </article>
+            );
+          })
+        ) : (
+          <p class="empty" style="grid-column:1/-1">NO TRAJECTORIES PLOTTED YET.</p>
+        )
+      }
+    </div>
+  </div>
+</Base>

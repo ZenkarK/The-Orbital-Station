@@ -1,0 +1,11 @@
+---
+/** The little orbit-colored square used everywhere as a domain marker. */
+import { orbitById } from '../lib/orbits';
+
+interface Props {
+  orbit: string;
+}
+const o = orbitById(Astro.props.orbit);
+---
+
+<span class="sq" style={`background:${o.color}`} aria-hidden="true"></span>

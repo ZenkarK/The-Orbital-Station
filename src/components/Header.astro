@@ -1,0 +1,80 @@
+---
+import { SITE } from '../site.config';
+import { href } from '../lib/util';
+
+const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+const path = Astro.url.pathname.slice(base.length) || '/';
+
+const NAV = [
+  { to: '/', label: 'BRIDGE', hint: 'Home', match: (p: string) => p === '/' },
+  { to: '/transmissions/', label: 'TRANSMISSIONS', hint: 'Writing — essays, build logs, field notes', match: (p: string) => p.startsWith('/transmissions') || p.startsWith('/tags') },
+  { to: '/log/', label: 'FLIGHT LOG', hint: 'Projects', match: (p: string) => p.startsWith('/log') },
+  { to: '/library/', label: 'LIBRARY', hint: 'Books, papers and tools', match: (p: string) => p.startsWith('/library') },
+  { to: '/trajectories/', label: 'TRAJECTORIES', hint: 'Goals — the vision board', match: (p: string) => p.startsWith('/trajectories') },
+  { to: '/manual/', label: 'MANUAL', hint: 'The Orbital Model, explained', match: (p: string) => p.startsWith('/manual') || p.startsWith('/orbits') },
+  { to: '/observer/', label: 'OBSERVER', hint: 'About', match: (p: string) => p.startsWith('/observer') },
+];
+---
+
+<header class="chrome">
+  <div class="bar">
+    <a class="bar-id" href={href('/')}>
+      <span class="who">{SITE.author}</span>
+      <span class="doc">{SITE.name.toUpperCase()} · DOC {SITE.docId}</span>
+    </a>
+    <div class="bar-right">
+      <span class="readout" id="clock" aria-hidden="true">MJD —</span>
+      <span class="live" aria-hidden="true"><i></i>LIVE</span>
+      <a class="btn" href={href('/search/')} data-search-open aria-label="Search the station" aria-keyshortcuts="/ Control+K Meta+K">
+        SEARCH <kbd>/</kbd>
+      </a>
+      <button class="btn" id="themeToggle" type="button" aria-label="Toggle day and night theme">
+        <span class="to-light">DAY</span><span class="to-dark">NIGHT</span>
+      </button>
+    </div>
+  </div>
+  <nav class="nav" aria-label="Site">
+    {
+      NAV.map((n) => (
+        <a href={href(n.to)} title={n.hint} aria-current={n.match(path) ? 'page' : undefined}>
+          {n.label}
+        </a>
+      ))
+    }
+  </nav>
+</header>
+
+<style is:global>
+  :root[data-theme='light'] .to-light,
+  :root:not([data-theme='light']) .to-dark {
+    display: none;
+  }
+</style>
+
+<script>
+  /* MJD + UTC readout, as on the original station. */
+  function tick() {
+    const el = document.getElementById('clock');
+    if (!el) return;
+    const now = new Date();
+    const mjd = (now.getTime() / 86400000 + 40587).toFixed(2);
+    const utc = now.toISOString().slice(11, 16);
+    el.innerHTML = `MJD ${mjd}<span class="utc"> · ${utc} UTC</span>`;
+  }
+  tick();
+  setInterval(tick, 30000);
+
+  /* Theme toggle — choice persists per browser. */
+  const root = document.documentElement;
+  const meta = document.querySelector('meta[name="theme-color"]');
+  const paint = () => meta?.setAttribute('content', root.dataset.theme === 'light' ? '#e9e5da' : '#23262d');
+  paint();
+  document.getElementById('themeToggle')?.addEventListener('click', () => {
+    const next = root.dataset.theme === 'light' ? 'dark' : 'light';
+    root.dataset.theme = next;
+    try {
+      localStorage.setItem('theme', next);
+    } catch {}
+    paint();
+  });
+</script>
