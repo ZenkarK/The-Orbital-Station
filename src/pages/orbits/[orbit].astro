@@ -34,6 +34,12 @@ const projects = allProjects.filter((p) => p.data.orbit === o.id);
 const library = allLibrary.filter((l) => l.data.orbit === o.id);
 const trajectories = allTraj.filter((t) => t.data.orbit === o.id);
 const pct = Math.round(orbitProximity(o) * 100);
+/* An empty orbit says why, in terms of where it sits this season. */
+const EMPTY_BY_PHASE: Record<string, string> = {
+  NEAR: "IT'S RUNNING CLOSE THIS SEASON; THE FIRST ENTRY IS STILL BEING WRITTEN.",
+  'MID-ORBIT': "IT'S IN MID-ORBIT, BETWEEN SEASONS.",
+  FAR: "IT'S COASTING ON THE FAR SIDE.",
+};
 const name = o.name.charAt(0) + o.name.slice(1).toLowerCase();
 const nothing = !posts.length && !projects.length && !library.length && !trajectories.length;
 ---
@@ -142,7 +148,7 @@ const nothing = !posts.length && !projects.length && !library.length && !traject
       )
     }
 
-    {nothing && <p class="empty block">NOTHING FILED IN THIS ORBIT YET — IT'S COASTING ON THE FAR SIDE.</p>}
+    {nothing && <p class="empty block">NOTHING FILED IN THIS ORBIT YET — {EMPTY_BY_PHASE[phaseLabel(pct)]}</p>}
 
     <nav class="orbit-nav" aria-label="Other orbits">
       <a href={href(`/orbits/${prev.id}/`)}>← <Sq orbit={prev.id} />{prev.name}</a>

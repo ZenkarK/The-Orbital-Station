@@ -6,7 +6,7 @@ import TxItem from '../components/TxItem.astro';
 import MissionCard from '../components/MissionCard.astro';
 import { SITE, ORBITS } from '../site.config';
 import { getPosts, getProjects, getLibrary, getTrajectories, postsForProject } from '../lib/content';
-import { rankedOrbits } from '../lib/orbits';
+import { rankedOrbits, orbitCountWord, capitalize } from '../lib/orbits';
 import { href, two } from '../lib/util';
 
 const [posts, projects, library, trajectories] = await Promise.all([
@@ -37,9 +37,9 @@ const year = new Date().getUTCFullYear();
 <Base>
   <div class="page">
     <span class="eyebrow">THE ORBITAL MODEL · OPERATIONS · {year}</span>
-    <h1 class="hero-title">Six orbits.<span class="ghost">One center of mass.</span></h1>
+    <h1 class="hero-title">{capitalize(orbitCountWord)} orbits.<span class="ghost">One center of mass.</span></h1>
     <p class="lede">
-      I don't balance a life — I phase it. Six domains each hold their own track around a fixed center; some run
+      I don't balance a life — I phase it. {capitalize(orbitCountWord)} domains each hold their own track around a fixed center; some run
       close and hot this season, some swing wide and quiet. The orrery below isn't a picture of the idea. It's the
       control.
     </p>

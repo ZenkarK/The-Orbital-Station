@@ -1,6 +1,16 @@
 import { ORBITS, type Orbit, type OrbitId } from '../site.config';
+import { ringRadius } from './orrery-layout';
 
 export const orbitById = (id: string): Orbit => ORBITS.find((o) => o.id === id) ?? ORBITS[0];
+
+/** Ring radius on the 640-unit orrery: first orbit in ORBITS is the innermost ring. */
+export const orbitRadius = (o: Orbit): number => ringRadius(ORBITS.findIndex((x) => x.id === o.id), ORBITS.length);
+
+const NUMBER_WORDS = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten',
+  'eleven', 'twelve', 'thirteen', 'fourteen', 'fifteen', 'sixteen', 'seventeen', 'eighteen', 'nineteen', 'twenty'];
+/** How many orbits there are, in words ("twelve") — so copy never goes stale when one is added. */
+export const orbitCountWord = NUMBER_WORDS[ORBITS.length] ?? String(ORBITS.length);
+export const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
 /** "12:40" → SVG angle in degrees (0° = 3 o'clock, -90° = 12 o'clock). */
 export function clockToDeg(clock: string): number {

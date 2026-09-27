@@ -221,6 +221,17 @@ test('validates properties with clear messages', async () => {
   await assert.rejects(run('Bad.md', { 'site-url': 'not a url at all' }), /isn't a web address/);
 });
 
+test("without station-orbit, the note's vault folder picks the orbit; an explicit one still wins", async () => {
+  writeNote('Health/Base Building.md', '---\nstation: post\n---\nZone 2, mostly.\n');
+  const res = await run('Health/Base Building.md', { 'no-commit': true });
+  assert.equal(res.ok, true, res.error);
+  assert.equal(astroFrontmatter(page('posts/base-building')).orbit, 'body');
+  writeNote('Health/Chosen.md', '---\nstation: post\nstation-orbit: words\n---\nx\n');
+  await run('Health/Chosen.md', { 'no-commit': true });
+  assert.equal(astroFrontmatter(page('posts/chosen')).orbit, 'words');
+  for (const slug of ['base-building', 'chosen']) fs.rmSync(path.join(repo, 'src/content/posts', slug), { recursive: true });
+});
+
 test('hand-typed values are read case-insensitively', async () => {
   writeNote('Rover.md', '---\nstation: Project\nstation-orbit: Astro\nstation-status: active\n---\nA rover.\n');
   const res = await run('Rover.md', { 'no-commit': true });

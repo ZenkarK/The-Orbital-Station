@@ -3,7 +3,7 @@
 #
 #   type:  BOOK | PAPER | ESSAY | TOOL | FILM | COURSE | OTHER
 #   shelf: READING | QUEUE | ABSORBED | REFERENCE
-#   orbit: systems | markets | craft | astro | venture | words
+#   orbit: body | kin | mind | growth | language | astro | craft | voyage | words | systems | markets | venture
 #   link:  optional, must start with https://
 
 - id: design-of-everyday-things

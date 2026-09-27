@@ -10,7 +10,7 @@
 
      station:          post | project          which kind of page
      station-title     page title              (default: the note's file name)
-     station-orbit     systems | markets | craft | astro | venture | words   (required)
+     station-orbit     an orbit id from site.config.ts, e.g. astro        (default: from the note's folder)
      station-kind      essay | build-log | field-note                     (posts)
      station-status    PLANNED | ACTIVE | COMPLETE | SCRUBBED            (projects)
      station-date      publication date        (default: kept from the page, else today)
@@ -59,6 +59,7 @@ import {
   upstreamHasSource,
   siteUrlFor,
   normalizeSiteUrl,
+  orbitForNote,
   DEPLOY_BRANCH,
 } from './site.mjs';
 
@@ -264,7 +265,7 @@ async function describe(repo) {
     deployBranch: DEPLOY_BRANCH,
     remote,
     siteUrl: siteUrlFor(repo, remote),
-    orbits: cfg.ORBITS.map((o) => ({ id: o.id, name: o.name })),
+    orbits: cfg.ORBITS.map((o) => ({ id: o.id, name: o.name, folders: [...(o.folders ?? [])] })),
     kinds: Object.entries(cfg.POST_KINDS).map(([id, label]) => ({ id, label })),
     statuses: [...cfg.PROJECT_STATUSES],
     projects: listProjects(repo),
@@ -401,7 +402,8 @@ export async function publish(opts) {
   const prior = (atTarget && isMine(atTarget) ? atTarget : null) ?? mine.find((p) => p.collection === collection) ?? mine[0] ?? null;
   const priorFields = prior ? safeFrontmatter(prior.text) : {};
   const orbitIds = cfg.ORBITS.map((o) => o.id);
-  const orbit = String(prop('orbit') ?? '').trim().toLowerCase();
+  // No orbit chosen? The note's vault folder decides (site.config.ts → ORBITS[].folders).
+  const orbit = String(prop('orbit') || orbitForNote(notePath, cfg.ORBITS) || '').trim().toLowerCase();
   if (!orbitIds.includes(orbit)) {
     throw new UserError(orbit ? `Unknown orbit "${orbit}". Use one of: ${orbitIds.join(', ')}.` : `Choose an orbit: ${orbitIds.join(', ')}.`);
   }

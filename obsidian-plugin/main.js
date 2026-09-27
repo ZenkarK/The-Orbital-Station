@@ -19,7 +19,7 @@ const path = require('path');
 
 /**
  * @typedef {{ repoPath: string, nodePath: string, siteUrl: string, defaultOrbit: string, push: boolean }} Settings
- * @typedef {{ id: string, name: string }} OrbitInfo
+ * @typedef {{ id: string, name: string, folders?: string[] }} OrbitInfo
  * @typedef {{ ok: boolean, error?: string, node?: string, git?: boolean, branch?: string|null, deployBranch?: string,
  *   remote?: string|null, siteUrl?: string|null, orbits?: OrbitInfo[], kinds?: {id: string, label: string}[],
  *   statuses?: string[], projects?: {id: string, title: string}[] }} SiteInfo
@@ -50,6 +50,19 @@ const slugify = (/** @type {unknown} */ s) =>
     .replace(/^-+|-+$/g, '')
     .slice(0, 80)
     .replace(/-+$/, '');
+/** The orbit whose `folders` hold this vault path (deepest folder wins) — same rules as the publisher. */
+const orbitForNote = (/** @type {string} */ notePath, /** @type {OrbitInfo[]} */ orbits) => {
+  const dir = notePath.toLowerCase(); // Obsidian paths always use "/"
+  /** @type {string | null} */ let best = null;
+  let depth = 0;
+  for (const o of orbits) {
+    for (const folder of o.folders ?? []) {
+      const f = folder.replace(/^\/+|\/+$/g, '').toLowerCase();
+      if (f && dir.startsWith(`${f}/`) && f.length > depth) (best = o.id), (depth = f.length);
+    }
+  }
+  return best;
+};
 /** Tags: a YAML list, or a comma-separated string (same as the publisher). */
 const asList = (/** @type {unknown} */ v) =>
   v == null || v === ''
@@ -564,6 +577,8 @@ class TransmitModal extends Modal {
       return;
     }
     const v = this.values;
+    // A note that never chose an orbit starts in the one its vault folder belongs to.
+    if (!String(this.plugin.fm(this.file)['station-orbit'] ?? '').trim()) v.orbit = orbitForNote(this.file.path, this.info.orbits ?? []) ?? v.orbit;
     if (!this.info.orbits?.some((o) => o.id === v.orbit)) v.orbit = this.info.orbits?.[0]?.id ?? v.orbit;
     this.scope.register(['Mod'], 'Enter', () => {
       this.submit();
@@ -623,7 +638,7 @@ class TransmitModal extends Modal {
 
     new Setting(contentEl)
       .setName('Orbit')
-      .setDesc('Which of the six domains this belongs to.')
+      .setDesc("Which domain this belongs to. New notes start in their folder's orbit.")
       .addDropdown((d) => {
         for (const o of info.orbits ?? []) d.addOption(o.id, o.name);
         d.setValue(v.orbit).onChange((val) => {
@@ -897,12 +912,20 @@ class StationSettingTab extends PluginSettingTab {
 
     new Setting(containerEl)
       .setName('Default orbit')
-      .setDesc('Pre-selected in the dialog for notes that have never been published.')
+      .setDesc("Pre-selected for new notes outside every orbit's folders (folders are set in the site's site.config.ts).")
       .addDropdown((d) => {
-        for (const id of ['systems', 'markets', 'craft', 'astro', 'venture', 'words']) d.addOption(id, id.toUpperCase());
+        d.addOption(s.defaultOrbit, s.defaultOrbit.toUpperCase());
         d.setValue(s.defaultOrbit).onChange(async (v) => {
           s.defaultOrbit = v;
           await this.plugin.saveSettings();
+        });
+        // Offer the site's own orbits once the publisher answers.
+        this.plugin.siteInfo().then((info) => {
+          if (!info.orbits?.length) return;
+          d.selectEl.empty();
+          for (const o of info.orbits) d.addOption(o.id, o.name);
+          if (!info.orbits.some((o) => o.id === s.defaultOrbit)) d.addOption(s.defaultOrbit, s.defaultOrbit.toUpperCase());
+          d.setValue(s.defaultOrbit);
         });
       });
 

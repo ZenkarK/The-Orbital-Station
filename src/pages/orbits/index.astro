@@ -4,7 +4,7 @@ import SectionHead from '../../components/SectionHead.astro';
 import Sq from '../../components/Sq.astro';
 import { ORBITS } from '../../site.config';
 import { getPosts, getProjects, getLibrary } from '../../lib/content';
-import { orbitProximity, phaseLabel } from '../../lib/orbits';
+import { orbitProximity, phaseLabel, orbitCountWord, capitalize } from '../../lib/orbits';
 import { href } from '../../lib/util';
 
 const [posts, projects, library] = await Promise.all([getPosts(), getProjects(), getLibrary()]);
@@ -17,10 +17,10 @@ const rows = ORBITS.map((o) => {
 });
 ---
 
-<Base title="Orbits" description="The six domains of the Orbital Model and everything filed under each.">
+<Base title="Orbits" description={`The ${orbitCountWord} domains of the Orbital Model and everything filed under each.`}>
   <div class="page">
     <SectionHead tag="INDEX" link={{ href: '/manual/', label: 'READ THE MANUAL →' }} />
-    <h1 class="title">The Six Orbits</h1>
+    <h1 class="title">The {capitalize(orbitCountWord)} Orbits</h1>
     <p class="sec-sub">Every transmission, mission and library holding belongs to one orbit. Open one to see its whole record.</p>
     <div class="panel" style="padding:4px 20px">
       {

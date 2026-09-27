@@ -1,7 +1,7 @@
 ---
 /** Static orrery highlighting a single orbit — used on orbit pages. */
 import { ORBITS } from '../site.config';
-import { clockToDeg } from '../lib/orbits';
+import { clockToDeg, orbitRadius } from '../lib/orbits';
 
 interface Props {
   focus: string;
@@ -11,7 +11,8 @@ const C = 320;
 const rad = (d: number) => (d * Math.PI) / 180;
 const bodies = ORBITS.map((o) => {
   const a = rad(clockToDeg(o.clock));
-  return { ...o, x: C + Math.cos(a) * o.r, y: C + Math.sin(a) * o.r, on: o.id === focus };
+  const r = orbitRadius(o);
+  return { ...o, r, x: C + Math.cos(a) * r, y: C + Math.sin(a) * r, on: o.id === focus };
 });
 ---
 
@@ -27,7 +28,7 @@ const bodies = ORBITS.map((o) => {
       <circle
         cx={b.x.toFixed(2)}
         cy={b.y.toFixed(2)}
-        r={b.on ? 14 : 7}
+        r={b.on ? 11 : 5.5}
         fill={b.color}
         fill-opacity={b.on ? 1 : 0.35}
         stroke="var(--panel)"

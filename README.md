@@ -1,6 +1,6 @@
 # Orbital Station
 
-The personal site and blog of Zenkar: essays, build logs and field notes from six orbits.
+The personal site and blog of Zenkar: essays, build logs and field notes from twelve orbits.
 
 Every post, project, library holding and trajectory is a plain text file in this repository. Astro turns them into a fast static website with no database, no server and no tracking. It's hosted free on GitHub Pages: **push to `main` and the site rebuilds itself in about a minute.**
 
@@ -97,7 +97,7 @@ The dialog writes these for you. Edit them by hand if you prefer:
 station: post                 # post | project
 station-title: Relativistic jets, revisited      # default: the note's file name
 station-slug: relativistic-jets                   # the web address (keep it stable)
-station-orbit: astro          # systems | markets | craft | astro | venture | words
+station-orbit: astro          # any orbit id; blank = the orbit that claims the note's vault folder
 station-kind: field-note      # posts: essay | build-log | field-note
 station-status: ACTIVE        # projects: PLANNED | ACTIVE | COMPLETE | SCRUBBED
 station-date: 2026-09-26       # blank = keep the page's date (today for a new page)
@@ -168,7 +168,7 @@ date: 2026-10-03                        # required — publication date
 updated: 2026-10-10                     # optional — shows "UPDATED" at the end
 summary: One or two sentences.          # optional — lists, search, RSS, link previews
                                         #   (blank = the first paragraph is used)
-orbit: systems                          # systems | markets | craft | astro | venture | words
+orbit: systems                          # body | kin | mind | growth | language | astro | craft | voyage | words | systems | markets | venture
 kind: build-log                         # essay | build-log | field-note   (default: essay)
 tags: [ct, calibration]                 # optional — each gets a /tags/<tag>/ page
 project: helios                         # optional — files the post under a Flight Log mission
@@ -219,6 +219,7 @@ Name a file `.mdx` instead of `.md` to use components inside a post. Plain `.md`
 | **Flight Log** (projects) | `src/content/projects/<slug>.md` — or publish a note as a *Mission* from Obsidian | `npm run new -- project "Name" orbit=astro status=ACTIVE` |
 | **Library** (books, papers, tools) | `src/content/library.yaml` — listed in file order | `npm run new -- library "Title" type=BOOK author="Name" orbit=systems shelf=READING` |
 | **Trajectories** (goals) | `src/content/trajectories.yaml` — set `reached: true` when you arrive | `npm run new -- trajectory "Goal" orbit=craft horizon=NOW` |
+| **Orbits** (names, colors, ring order, vault folders) | `ORBITS` in `src/site.config.ts` | Edit by hand — first entry is the innermost ring |
 | **Orrery / current phase** | `ORBITS[].clock` in `src/site.config.ts` | Edit by hand when the season changes |
 | **Manual** | `src/pages/manual.astro` | Edit by hand |
 | **Observer** (about) | `src/pages/observer.astro` | Edit by hand |
@@ -226,6 +227,8 @@ Name a file `.mdx` instead of `.md` to use components inside a post. Plain `.md`
 **Project frontmatter:** `title`, `summary`, `orbit`, `status` (`PLANNED | ACTIVE | COMPLETE | SCRUBBED`), and optionally `started`, `ended`, `order` (lower lists first), `stack: [..]`, `repo: https://…`, `demo: https://…`.
 
 **Setting the orrery.** Each orbit's `clock` is where its body sits on a clock face: `12:00` is NEAR (what this season is for), `6:00` is FAR. Update the clocks and `PHASE_LOGGED`, then push. Visitors can drag the bodies around, but nothing they move is saved.
+
+**Orbits and your vault.** The twelve orbits mirror the areas of the Obsidian vault. Each orbit's `folders` lists the vault folders it claims (`Health` → BODY, `Finance/Ventures` → VENTURE; the deepest folder wins), so a note published without a `station-orbit` lands in its folder's orbit. Order in `ORBITS` is ring order: the innermost ring is the most foundational. Adding or reordering an orbit needs no other change — rings, labels and page copy all follow the config.
 
 ---
 

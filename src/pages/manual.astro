@@ -3,7 +3,7 @@ import Base from '../layouts/Base.astro';
 import SectionHead from '../components/SectionHead.astro';
 import Sq from '../components/Sq.astro';
 import { ORBITS, SITE } from '../site.config';
-import { orbitProximity } from '../lib/orbits';
+import { orbitProximity, orbitCountWord } from '../lib/orbits';
 import { href } from '../lib/util';
 
 const constants = SITE.constants.map((c) => c.toLowerCase());
@@ -60,8 +60,12 @@ const constants = SITE.constants.map((c) => c.toLowerCase());
     </section>
 
     <section class="man-sec">
-      <h2 class="man-label">4.0 · THE SIX ORBITS</h2>
+      <h2 class="man-label">4.0 · THE {orbitCountWord.toUpperCase()} ORBITS</h2>
       <div class="man-body" style="max-width:none">
+        <p>
+          Distance from the center is how foundational a domain is: the inner rings are what everything else rests
+          on, the outer rings are the work that faces the world.
+        </p>
         {
           ORBITS.map((o) => (
             <a class="orbit-row" href={href(`/orbits/${o.id}/`)}>

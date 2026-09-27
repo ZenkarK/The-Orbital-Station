@@ -675,6 +675,11 @@ main {
   letter-spacing: 0.08em;
   fill: var(--fg);
   pointer-events: none;
+  /* a panel-colored halo keeps labels readable where they cross a ring */
+  paint-order: stroke;
+  stroke: var(--panel);
+  stroke-width: 3px;
+  stroke-linejoin: round;
 }
 .orrery .blabel.dim {
   fill: var(--faint);
@@ -699,7 +704,7 @@ main {
     font-size: 15px;
   }
   .orrery .body {
-    r: 13px;
+    r: 10px;
   }
 }
 .state-list {

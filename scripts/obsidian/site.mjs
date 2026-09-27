@@ -14,6 +14,24 @@ export async function loadSiteConfig(repo) {
   return import(pathToFileURL(file).href);
 }
 
+/**
+ * The orbit a vault note belongs to by where it lives: the orbit whose `folders`
+ * holds the note's deepest enclosing folder (whole folder names, any letter case),
+ * or null when no orbit claims it.
+ */
+export function orbitForNote(notePath, orbits) {
+  const dir = String(notePath).replaceAll('\\', '/').toLowerCase();
+  let best = null;
+  let depth = 0;
+  for (const o of orbits) {
+    for (const folder of o.folders ?? []) {
+      const f = folder.replace(/^\/+|\/+$/g, '').toLowerCase();
+      if (f && dir.startsWith(`${f}/`) && f.length > depth) (best = o.id), (depth = f.length);
+    }
+  }
+  return best;
+}
+
 /** Flight Log missions available to file posts under. */
 export function listProjects(repo) {
   const dir = path.join(repo, 'src', 'content', 'projects');

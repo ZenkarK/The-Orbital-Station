@@ -10,7 +10,7 @@ export const SITE = {
   /** Shown in <title> and social cards. */
   title: 'Orbital Station — Zenkar',
   description:
-    'The personal station of Zenkar — systems engineer in medical imaging, astrophysicist by training. Essays, build logs and field notes from six orbits.',
+    'The personal station of Zenkar — systems engineer in medical imaging, astrophysicist by training. Essays, build logs and field notes from twelve orbits.',
   /** Little document code in the header. Bump the revision when you redesign. */
   docId: 'ZK-26-R5',
   latitude: '43°N',
@@ -39,62 +39,118 @@ export const SITE = {
 } as const;
 
 /* -------------------------------------------------------------
-   THE SIX ORBITS
+   THE ORBITS
+   Order is ring order, innermost first: the foundations everything
+   else rests on run closest to the center of mass; the outward-
+   facing work runs farthest out. Reorder entries to move rings.
+
    `clock` is where each body currently sits on its orbit, read
    like a clock face: 12:00 is NEAR (what this season is actually
    for), 6:00 is FAR (coasting on maintenance energy). Update
    these whenever the season changes, then redeploy.
+
+   `folders` are the Obsidian vault folders (and their subfolders)
+   whose notes land in this orbit by default when published. The
+   deepest match wins, so Finance/Ventures beats Finance.
    ------------------------------------------------------------- */
 export const PHASE_LOGGED = '2026-09-26';
 
 export const ORBITS = [
   {
+    id: 'body',
+    name: 'BODY',
+    color: '#D45666',
+    clock: '11:00',
+    folders: ['Health'],
+    desc: 'The vessel everything else rides in — training, movement, sleep, and the maintenance that keeps the rest possible.',
+  },
+  {
+    id: 'kin',
+    name: 'KIN',
+    color: '#EA91BC',
+    clock: '12:15',
+    folders: ['Family and Friends'],
+    desc: 'Family and friends — the relationships that never show up in a log but hold the whole system together.',
+  },
+  {
+    id: 'mind',
+    name: 'MIND',
+    color: '#0F9293',
+    clock: '3:20',
+    folders: ['Philosophy'],
+    desc: "Philosophy as practice — meaning, mortality, free will, and the questions that don't resolve but do clarify.",
+  },
+  {
+    id: 'growth',
+    name: 'GROWTH',
+    color: '#7CA53D',
+    clock: '10:30',
+    folders: ['Personal Development', 'Productivity and Efficiency'],
+    desc: 'Getting better on purpose — habits, focus, and the systems behind the systems.',
+  },
+  {
+    id: 'language',
+    name: 'LANGUAGE',
+    color: '#B559A3',
+    clock: '8:20',
+    folders: ['Learning and Languages'],
+    desc: 'Learning for its own sake — new languages, new grammars, new ways of carving up the world.',
+  },
+  {
+    id: 'astro',
+    name: 'ASTRO',
+    color: '#9D8FD0',
+    clock: '7:00',
+    folders: ['Astrophysics'],
+    desc: 'First love. Astrophysics, dark skies, and the long view that keeps the rest in scale.',
+  },
+  {
+    id: 'craft',
+    name: 'CRAFT',
+    color: '#C97F5F',
+    clock: '4:10',
+    folders: ['Cooking', 'Photography'],
+    desc: 'Hands and senses — cooking, photography, and the pursuits chosen purely for aliveness.',
+  },
+  {
+    id: 'voyage',
+    name: 'VOYAGE',
+    color: '#37D2F2',
+    clock: '1:30',
+    folders: ['Travel'],
+    desc: 'Travel and the bucket list — going somewhere unfamiliar to recalibrate what normal is.',
+  },
+  {
+    id: 'words',
+    name: 'WORDS',
+    color: '#8FAE8B',
+    clock: '11:50',
+    folders: ['Writing'],
+    desc: 'Transmissions, essays, and a science-fantasy series in the making. Thinking, made durable.',
+  },
+  {
     id: 'systems',
     name: 'SYSTEMS',
     color: '#7FA6C9',
-    r: 95,
     clock: '12:40',
+    folders: ['Work', 'Aerospace Engineering', 'Technology'],
     desc: 'Engineering as a way of seeing — architecture, instrumentation, and the discipline of making complex things reliable.',
   },
   {
     id: 'markets',
     name: 'MARKETS',
     color: '#C9A24B',
-    r: 130,
     clock: '2:30',
+    folders: ['Finance'],
     desc: 'Capital as stored energy. Trading systems, long-horizon investing, and the honest study of risk.',
-  },
-  {
-    id: 'craft',
-    name: 'CRAFT',
-    color: '#C97F5F',
-    r: 165,
-    clock: '4:10',
-    desc: 'Hands and senses — cooking, photography, and the pursuits chosen purely for aliveness.',
-  },
-  {
-    id: 'astro',
-    name: 'ASTRO',
-    color: '#9D8FD0',
-    r: 200,
-    clock: '7:00',
-    desc: 'First love. Astrophysics, dark skies, and the long view that keeps the rest in scale.',
   },
   {
     id: 'venture',
     name: 'VENTURE',
     color: '#D97A45',
-    r: 235,
     clock: '9:40',
+    folders: ['Finance/Ventures'],
     desc: 'Things built to leave the pad — products, experiments, small deliberate bets.',
-  },
-  {
-    id: 'words',
-    name: 'WORDS',
-    color: '#8FAE8B',
-    r: 270,
-    clock: '11:50',
-    desc: 'Transmissions and essays. Thinking, made durable.',
   },
 ] as const;
 
