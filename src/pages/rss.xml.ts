@@ -19,9 +19,10 @@ export async function GET(context: APIContext) {
     trailingSlash: true,
     items: posts.map((post) => {
       const link = abs(`/transmissions/${post.id}/`);
-      // Full text for .md posts; MDX posts fall back to the summary.
+      // Full text for .md posts; MDX posts fall back to the summary. Root-relative
+      // links already carry the base path, so they only need the origin.
       const html = post.rendered?.html
-        ?.replace(/(href|src)="\/(?!\/)/g, `$1="${new URL(href('/'), site).href}`)
+        ?.replace(/(href|src)="\/(?!\/)/g, `$1="${site.origin}/`)
         .trim();
       return {
         title: post.data.title,

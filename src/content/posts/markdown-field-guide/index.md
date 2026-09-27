@@ -71,6 +71,32 @@ npm run new post "My next transmission"
 npm run dev
 ```
 
+## Math
+
+Inline math sits in the sentence: the Bekenstein–Hawking entropy is $S_{BH} = \frac{k_B A}{4 \ell_P^2}$, and a jet with $\beta = 0.995$ has $\Gamma \approx 10$. Dollar amounts like $5 and $10 stay plain text.
+
+Display math gets its own line:
+
+$$
+\Gamma = \frac{1}{\sqrt{1 - \beta^2}}, \qquad
+S = \frac{\text{Area}(\gamma_A)}{4 G_N}
+$$
+
+## Callouts
+
+> [!note] Callouts work exactly as in Obsidian
+> Write `> [!type] Title` and the body underneath, with **any** Markdown inside.
+
+> [!tip]
+> No title? The type name is used.
+
+> [!warning]- Foldable callouts start closed
+> Use `-` after the type to fold, `+` to start open.
+
+> [!example] Nesting
+> > [!quote] Inner callout
+> > Even the fastest things are shaped by drag.
+
 ## Tables
 
 | Orbit   | Clock | State |

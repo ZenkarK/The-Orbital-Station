@@ -1,0 +1,106 @@
+/* Orbital Station Publisher */
+.oss-modal {
+  width: min(620px, 92vw);
+}
+.oss-modal .setting-item-control textarea {
+  width: 100%;
+  min-width: 260px;
+  resize: vertical;
+}
+.oss-modal .setting-item-control input[type='text'] {
+  min-width: 260px;
+}
+.oss-url {
+  font-family: var(--font-monospace);
+  font-size: var(--font-ui-smaller);
+  word-break: break-all;
+}
+.oss-muted {
+  color: var(--text-muted);
+  font-size: var(--font-ui-small);
+}
+.oss-modal .setting-item {
+  padding: 0.55em 0;
+}
+.oss-actions {
+  position: sticky;
+  bottom: calc(-1 * var(--size-4-4, 16px));
+  z-index: 1;
+  margin-top: 8px;
+  padding: 10px 0 var(--size-4-4, 16px);
+  background: var(--modal-background, var(--background-primary));
+  border-top: 1px solid var(--background-modifier-border);
+}
+.oss-actions .setting-item {
+  border-top: none;
+  padding: 6px 0 0;
+}
+.oss-git {
+  margin: 0;
+}
+.oss-error {
+  color: var(--text-error);
+  font-size: var(--font-ui-small);
+  margin: 4px 0 0;
+}
+.oss-error:empty {
+  display: none;
+}
+.oss-check {
+  margin: 0 0 8px;
+  padding: 8px 12px;
+  max-height: 9em;
+  overflow-y: auto;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-s, 4px);
+  background: var(--background-secondary);
+  font-size: var(--font-ui-small);
+}
+.oss-check p {
+  margin: 0;
+}
+.oss-check-head {
+  font-weight: 600;
+}
+.oss-check-embed {
+  margin-top: 6px !important;
+  color: var(--text-warning);
+}
+.oss-check-problem {
+  color: var(--text-error);
+}
+.oss-check-list {
+  margin: 6px 0 0;
+  padding-left: 1.2em;
+  color: var(--text-muted);
+}
+.oss-notice-head {
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+.oss-notice-line {
+  font-size: var(--font-ui-small);
+  margin-top: 2px;
+}
+.oss-notice-line.mod-warning {
+  color: var(--text-warning);
+}
+.oss-notice-line.mod-muted {
+  color: var(--text-muted);
+}
+.oss-notice-link {
+  display: block;
+  margin-top: 4px;
+  font-size: var(--font-ui-small);
+  word-break: break-all;
+}
+.oss-status {
+  cursor: pointer;
+  font-family: var(--font-monospace);
+  font-size: var(--font-ui-smaller);
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+}
+.oss-status.is-live {
+  color: var(--color-orange);
+}

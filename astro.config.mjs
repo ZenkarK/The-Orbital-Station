@@ -2,6 +2,8 @@
 import { defineConfig } from 'astro/config';
 import mdx from '@astrojs/mdx';
 import sitemap from '@astrojs/sitemap';
+import { satteri } from '@astrojs/markdown-satteri';
+import { mathPlugin, calloutPlugin, createBasePathPlugin } from './src/lib/markdown-plugins.mjs';
 
 /*
  * SITE_URL  — the public origin, e.g. https://zenkar.dev. Used for canonical
@@ -34,6 +36,11 @@ export default defineConfig({
     }),
   ],
   markdown: {
+    // Obsidian-compatible: $math$ / $$math$$ (KaTeX) and > [!note] callouts.
+    processor: satteri({
+      features: { math: true },
+      mdastPlugins: [mathPlugin, calloutPlugin, createBasePathPlugin(BASE_PATH)],
+    }),
     shikiConfig: {
       theme: 'css-variables',
       wrap: false,

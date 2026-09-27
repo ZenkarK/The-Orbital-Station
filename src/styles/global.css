@@ -74,6 +74,7 @@
   --shadow: 4px 4px 0 var(--shadow-c);
   --shadow-sm: 2px 2px 0 var(--shadow-c);
   --header-h: 96px;
+  --c-note: #7fa6c9;
 }
 
 @view-transition {
@@ -1368,6 +1369,102 @@ main {
   color: var(--on-accent);
   padding: 0 0.2em;
 }
+/* callouts — Obsidian's > [!type] blocks */
+.prose .callout {
+  --co: var(--c-note);
+  border: 2px solid var(--edge);
+  border-left: 5px solid var(--co);
+  background: var(--panel);
+  box-shadow: var(--shadow);
+  padding: 14px 18px 16px;
+  font-size: 0.94em;
+  color: var(--text);
+}
+.prose .callout-title {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--fg);
+  list-style: none;
+}
+.prose .callout-title::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  flex: none;
+  background: var(--co);
+  transform: translateY(-1px);
+}
+.prose summary.callout-title {
+  cursor: pointer;
+}
+.prose summary.callout-title::-webkit-details-marker {
+  display: none;
+}
+.prose summary.callout-title::after {
+  content: '+';
+  margin-left: auto;
+  color: var(--faint);
+  font-size: 14px;
+}
+.prose details.callout[open] > summary.callout-title::after {
+  content: '−';
+}
+.prose .callout-body {
+  margin-top: 10px;
+}
+.prose .callout-body > * + * {
+  margin-top: 0.8em;
+}
+.prose .callout .callout {
+  box-shadow: none;
+  margin-top: 0.8em;
+}
+.prose .callout[data-callout='abstract'],
+.prose .callout[data-callout='success'] {
+  --co: #8fae8b;
+}
+.prose .callout[data-callout='tip'] {
+  --co: var(--accent);
+}
+.prose .callout[data-callout='question'] {
+  --co: #c9a24b;
+}
+.prose .callout[data-callout='warning'] {
+  --co: #d97a45;
+}
+.prose .callout[data-callout='failure'],
+.prose .callout[data-callout='danger'],
+.prose .callout[data-callout='bug'] {
+  --co: var(--caution);
+}
+.prose .callout[data-callout='example'] {
+  --co: #9d8fd0;
+}
+.prose .callout[data-callout='quote'] {
+  --co: var(--faint);
+}
+
+/* math — KaTeX renders at build time; these just fit it to the page */
+.prose .katex {
+  font-size: 1.08em;
+  color: var(--fg);
+}
+.prose .katex-display {
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 0.4em 0;
+  margin: 1.4em 0;
+}
+.prose .katex .katex-error {
+  color: var(--caution);
+}
+
 .prose kbd {
   font-family: var(--mono);
   font-size: 0.8em;
