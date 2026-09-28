@@ -107,9 +107,9 @@ test('analytics on: counts page views and events, honours DNT/GPC, sets no cooki
       assert.equal(hits.length, 1, 'one count per page view');
       const hit = hits[0];
       assert.equal(hit.searchParams.get('p'), `${BASE}transmissions/${PROBE}/`, 'path only — no query, no fragment');
-      assert.match(hit.searchParams.get('t'), /Analytics probe/);
+      assert.match(hit.searchParams.get('t'), /^ASTRO · Analytics probe/, 'pages in an orbit prefix the counted title with its name');
       assert.equal(hit.searchParams.has('r'), false, 'no referrer on a direct visit');
-      assert.deepEqual(await page.cookies(), [], 'no cookies');
+      assert.deepEqual(await page.browserContext().cookies(), [], 'no cookies');
       assert.equal(await page.evaluate(() => document.cookie), '');
 
       await page.click('[data-event="probe-event"]');

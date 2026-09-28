@@ -1,5 +1,5 @@
 ---
-import 'katex/dist/katex.min.css';
+import katexCss from 'katex/dist/katex.min.css?url'; // READ-07: linked only where math renders (see hasMath)
 import { render } from 'astro:content';
 import Base from '../../layouts/Base.astro';
 import SectionHead from '../../components/SectionHead.astro';
@@ -40,9 +40,12 @@ const jsonLd = breadcrumbLd(
 // READ-02: same generated-card-over-cover reasoning as transmissions — see that page.
 const ogImage = href(`/og/log/${project.id}.png`);
 const ogImageAlt = `${title} — a mission log on the ${o.name} orbit, Orbital Station.`;
+// READ-07: same rule as transmissions/[...slug].astro.
+const hasMath = project.rendered?.html ? project.rendered.html.includes('class="katex') : /\$/.test(project.body ?? '');
 ---
 
-<Base title={title} description={summary} image={ogImage} imageAlt={ogImageAlt} noindex={draft} jsonLd={jsonLd}>
+<Base title={title} description={summary} image={ogImage} imageAlt={ogImageAlt} noindex={draft} jsonLd={jsonLd} orbit={orbit}>
+  {hasMath && <link rel="stylesheet" href={katexCss} slot="head" />}
   <div class="page">
     <a class="backlink" href={href('/log/')}>← FLIGHT LOG</a>
     <SectionHead tag={`MISSION ${two(no)}`}>

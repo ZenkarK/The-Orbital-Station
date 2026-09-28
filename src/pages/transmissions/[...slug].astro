@@ -1,5 +1,5 @@
 ---
-import 'katex/dist/katex.min.css';
+import katexCss from 'katex/dist/katex.min.css?url'; // READ-07: linked only where math renders (see hasMath)
 import { render, getEntry } from 'astro:content';
 import { Image } from 'astro:assets';
 import Base from '../../layouts/Base.astro';
@@ -73,6 +73,10 @@ const jsonLd = [
    runs as the in-page hero figure below. */
 const ogImage = href(`/og/transmissions/${post.id}.png`);
 const ogImageAlt = `${title} — a transmission on the ${o.name} orbit, Orbital Station.`;
+
+/* READ-07: KaTeX's stylesheet (and its fonts) only on pages that render math. An MDX post
+   has no pre-rendered HTML to check, so it keeps the stylesheet whenever its source has a "$". */
+const hasMath = post.rendered?.html ? post.rendered.html.includes('class="katex') : /\$/.test(post.body ?? '');
 ---
 
 <Base
@@ -86,7 +90,9 @@ const ogImageAlt = `${title} — a transmission on the ${o.name} orbit, Orbital 
   imageAlt={ogImageAlt}
   noindex={draft}
   jsonLd={jsonLd}
+  orbit={orbit}
 >
+  {hasMath && <link rel="stylesheet" href={katexCss} slot="head" />}
   <article class="page">
     <header class="post-head">
       <a class="backlink" href={href('/transmissions/')}>← ALL TRANSMISSIONS</a>

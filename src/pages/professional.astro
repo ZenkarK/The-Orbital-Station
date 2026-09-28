@@ -9,6 +9,7 @@ import SectionHead from '../components/SectionHead.astro';
 import { SITE } from '../site.config';
 import { getProfile, getSelectedWork } from '../lib/content';
 import { href } from '../lib/util';
+import { personLd } from '../lib/structured-data';
 import '../styles/professional.css';
 
 const profile = await getProfile();
@@ -20,6 +21,7 @@ const isExternal = (url: string) => /^https?:\/\//.test(url);
 <Base
   title="Professional"
   description={profile.headline || `Roles, expertise and education for ${SITE.author}, plus a downloadable CV.`}
+  jsonLd={personLd(Astro.site!, { jobTitle: 'Systems Engineer', description: profile.headline || undefined })}
 >
   <div class="page">
     <SectionHead tag="SEC. F" />

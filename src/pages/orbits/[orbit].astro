@@ -77,6 +77,7 @@ const ogImageAlt = `${name} orbit — Orbital Station.`;
   imageAlt={ogImageAlt}
   feeds={phaseOnly ? [] : [{ href: feedHref, title: `${SITE.name} — ${o.name}` }]}
   jsonLd={jsonLd}
+  orbit={o.id}
 >
   <div class="page">
     <a class="backlink" href={href('/orbits/')}>← ALL ORBITS</a>
