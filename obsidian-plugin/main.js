@@ -34,6 +34,12 @@ const path = require('path');
  *   guard?: Guard, secrets?: SecretFinding[], media?: MediaEntry[], blocked?: string[] }} PublishResult
  * @typedef {{ type: string, title: string, slug: string, orbit: string, kind: string, status: string,
  *   date: string, summary: string, tags: string[], project: string }} Values
+ * @typedef {{ note: string, title: string, orbit: string|null, public: boolean, sensitive: string|null,
+ *   published: string|null, problems: string[] }} QueuedNote
+ * @typedef {{ transmissions: number, orbits: number, ready: boolean, need: { transmissions: number, orbits: number },
+ *   projected: { transmissions: number, orbits: number } }} LaunchStatus
+ * @typedef {{ ok: boolean, error?: string, queued?: QueuedNote[], problems?: string[], launch?: LaunchStatus,
+ *   base?: { path: string, written: boolean, current?: boolean } }} QueueResult
  */
 
 /** @type {Settings} */
@@ -137,6 +143,19 @@ const cleanRoomLine = (/** @type {MediaEntry} */ m) => {
 };
 const cleanRoomLines = (/** @type {MediaEntry[] | null | undefined} */ media) => (Array.isArray(media) ? media.map(cleanRoomLine) : []);
 
+/** GROW-08: the "Open transmission queue" Notice — the launch count, then anything that can't go out. */
+const queueSummary = (/** @type {QueueResult} */ res) => {
+  const l = res.launch;
+  if (!l) return '';
+  const lines = [
+    `Launch: ${l.transmissions}/${l.need.transmissions} transmissions across ${l.orbits}/${l.need.orbits} public orbits${l.ready ? ' — ready' : ''}.`,
+    `${(res.queued ?? []).filter((q) => !q.published).length} queued; with the queue sent: ${l.projected.transmissions} across ${l.projected.orbits}.`,
+    ...(res.problems ?? []).map((p) => `✗ ${p}`),
+  ];
+  if (res.base && !res.base.written && !res.base.current) lines.push(`"${res.base.path}" wasn't made by the publisher, so it was left as it is.`);
+  return lines.join('\n');
+};
+
 /** Transmit is only ever allowed once nothing is blocked and any needed yes has been given. */
 const canTransmit = (/** @type {PublishResult | null | undefined} */ res, /** @type {boolean} */ confirmed) => {
   if (!res || res.ok === false) return false;
@@ -188,6 +207,11 @@ class OrbitalStationPublisher extends Plugin {
       id: 'unpublish-note',
       name: 'Unpublish current note',
       checkCallback: (checking) => this.onActive(checking, (f) => this.confirmUnpublish(f), (f) => this.hasPage(f)),
+    });
+    this.addCommand({
+      id: 'open-transmission-queue',
+      name: 'Open transmission queue',
+      callback: () => this.openQueue(),
     });
     this.addCommand({
       id: 'open-published-page',
@@ -271,6 +295,17 @@ class OrbitalStationPublisher extends Plugin {
       '/usr/bin/node',
     ].filter(Boolean);
     return /** @type {string} */ (candidates.find((c) => c && fs.existsSync(c)) ?? 'node');
+  }
+
+  /** GROW-08: refresh "Transmission Queue.base" at the vault root, open it, and say how close launch is. */
+  async openQueue() {
+    const root = this.vaultRoot();
+    if (!root) return void new Notice('This vault is not on the local file system.');
+    /** @type {QueueResult} */
+    const res = await this.runScript(['--queue', '--vault', root]);
+    if (!res.ok || !res.base) return void new Notice(`✗ ${res.error ?? 'The queue could not be read.'}`, 10000);
+    new Notice(queueSummary(res), res.problems?.length ? 15000 : 8000);
+    await this.app.workspace.openLinkText(res.base.path, '', true);
   }
 
   /** @param {TFile} file */
@@ -1151,6 +1186,7 @@ OrbitalStationPublisher.gateHelpers = {
   cleanRoomLines,
   canTransmit,
   buildPublishArgs,
+  queueSummary,
 };
 OrbitalStationPublisher.TransmitModal = TransmitModal;
 

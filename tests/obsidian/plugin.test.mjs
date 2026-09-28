@@ -394,3 +394,50 @@ test('republish: a failed dry run shows a Notice and never opens the dialog or p
   assert.equal(FakeNotice.calls.length, 1);
   assert.match(FakeNotice.calls[0].message, /YAML/);
 });
+
+/* ---------------------------------------------------------------- "Open transmission queue" (GROW-08) */
+
+const queueResult = (over = {}) => ({
+  ok: true,
+  queued: [
+    { note: 'Astrophysics/Jets.md', title: 'Jets', orbit: 'astro', public: true, sensitive: null, published: null, problems: [] },
+    { note: 'Astrophysics/Old.md', title: 'Old', orbit: 'astro', public: true, sensitive: null, published: '2026-09-01', problems: [] },
+  ],
+  problems: [],
+  launch: { transmissions: 3, orbits: 2, ready: false, need: { transmissions: 8, orbits: 5 }, projected: { transmissions: 4, orbits: 2 } },
+  base: { path: 'Transmission Queue.base', written: true },
+  ...over,
+});
+
+test('queueSummary states the launch count, the queue, and every flagged note', () => {
+  const text = helpers().queueSummary(queueResult({ problems: ['"Work/Plan.md" is in the sensitive folder "Work" — take it out of the queue.'] }));
+  assert.match(text, /^Launch: 3\/8 transmissions across 2\/5 public orbits\./);
+  assert.match(text, /1 queued; with the queue sent: 4 across 2\./);
+  assert.match(text, /✗ "Work\/Plan\.md" is in the sensitive folder "Work"/);
+  assert.doesNotMatch(helpers().queueSummary(queueResult()), /✗/);
+  assert.match(helpers().queueSummary(queueResult({ base: { path: 'Transmission Queue.base', written: false } })), /wasn't made by the publisher/);
+});
+
+test('openQueue runs the publisher with --queue for this vault, then opens the Base', async () => {
+  let opened = null;
+  const plugin = new Plugin({ workspace: { openLinkText: async (p) => (opened = p) } }, {});
+  plugin.vaultRoot = () => 'C:/vault';
+  let args = null;
+  plugin.runScript = async (a) => ((args = a), queueResult());
+  FakeNotice.calls = [];
+  await plugin.openQueue();
+  assert.deepEqual(args, ['--queue', '--vault', 'C:/vault']);
+  assert.equal(opened, 'Transmission Queue.base');
+  assert.match(FakeNotice.calls.at(-1).message, /^Launch: 3\/8/);
+});
+
+test('openQueue shows the error and opens nothing when the publisher fails', async () => {
+  let opened = false;
+  const plugin = new Plugin({ workspace: { openLinkText: async () => (opened = true) } }, {});
+  plugin.vaultRoot = () => 'C:/vault';
+  plugin.runScript = async () => ({ ok: false, error: 'Which vault? Pass --vault.' });
+  FakeNotice.calls = [];
+  await plugin.openQueue();
+  assert.equal(opened, false);
+  assert.match(FakeNotice.calls.at(-1).message, /✗ Which vault/);
+});

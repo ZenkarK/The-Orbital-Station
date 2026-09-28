@@ -40,6 +40,8 @@
      --force                 allow replacing a page not published from this note
      --json                  machine-readable result (used by the plugin; implies --no-write-back)
      --describe              print the site's orbits, kinds, missions and git status
+     --queue                 the transmission queue and launch count (GROW-08, scripts/obsidian/queue.mjs);
+                              also writes/refreshes "Transmission Queue.base" at the vault root (needs --vault)
      --confirm-sensitive     the deliberate yes: publish from a sensitive folder, or into a
                               phase-only/hidden orbit anyway (the Transmit dialog's checkbox
                               sets this same flag; see "guard" below)
@@ -86,6 +88,7 @@ import { convertBody, extOf, IMAGE_EXT, NEVER_COPY } from './convert.mjs';
 import { splitFrontmatter, findVaultRoot, readVaultSettings, indexVault, createResolver } from './vault.mjs';
 import { scanText, scanBuffer, loadAllowlist, filterAllowed, formatFinding } from './secrets.mjs';
 import { scrub, findTools } from './scrub/index.mjs';
+import { queueReport } from './queue.mjs';
 import {
   loadSiteConfig,
   listProjects,
@@ -111,7 +114,7 @@ export class UserError extends Error {}
 /* ---------- args ---------- */
 function parseArgs(argv) {
   const flags = new Set([
-    'unpublish', 'dry-run', 'no-commit', 'no-push', 'no-write-back', 'force', 'json', 'describe', 'help',
+    'unpublish', 'dry-run', 'no-commit', 'no-push', 'no-write-back', 'force', 'json', 'describe', 'queue', 'help',
     'confirm-sensitive', 'allow-metadata',
   ]);
   const opts = { _: [] };
@@ -374,6 +377,12 @@ async function describe(repo) {
     sensitiveFolders: [...(cfg.SENSITIVE_FOLDERS ?? [])],
     projects: listProjects(repo),
   };
+}
+
+/* ---------- queue (GROW-08) ---------- */
+async function queue(opts, repo) {
+  if (!opts.vault) throw new UserError('Which vault? Pass --vault.');
+  return queueReport({ vault: path.resolve(opts.vault), repo, writeBase: true });
 }
 
 /* ---------- publish ---------- */
@@ -787,7 +796,7 @@ async function main() {
       process.stdout.write(obj.markdown);
       printChecks(obj);
       for (const w of obj.warnings ?? []) console.error(`  · ${w}`);
-    } else if (obj.orbits) console.log(JSON.stringify(obj, null, 2));
+    } else if (obj.orbits || obj.queued) console.log(JSON.stringify(obj, null, 2));
     else {
       console.log(`\n  ✓ ${obj.action.toUpperCase()}: ${obj.title}  →  ${obj.url ?? obj.path ?? (obj.removed ?? []).join(', ')}`);
       if (obj.note) console.log(`    ${obj.note}`);
@@ -804,7 +813,7 @@ async function main() {
   }
   try {
     const repo = path.resolve(opts.repo ?? DEFAULT_REPO);
-    out(opts.describe ? await describe(repo) : await publish(opts));
+    out(opts.describe ? await describe(repo) : opts.queue ? await queue(opts, repo) : await publish(opts));
   } catch (e) {
     const missingDeps = /ERR_MODULE_NOT_FOUND|Cannot find (package|module)/.test(String(e?.code ?? '') + e?.message);
     out({

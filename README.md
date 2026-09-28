@@ -171,6 +171,23 @@ never bypasses the secret scan. See "The gates, before anything goes public" abo
 
 Like the button, the command line records `station-slug`, `station-date` and (once online) `station-published`/`station-url` in the note, so the plugin recognizes pages published either way.
 
+### The launch queue
+
+Line notes up before you send them: give a note the checkbox property `station-queue` (and
+`station-orbit` if its folder's orbit isn't the one you want). Then, in Obsidian, run
+**Orbital Station: Open transmission queue** from the command palette. It writes (and keeps
+current) `Transmission Queue.base` at the vault root, a live table of queued notes grouped by
+target orbit, and tells you how close launch is: at least 8 transmissions across at least 5
+public orbits. Notes in sensitive folders never appear in the Base; a queued one, or one aimed
+at a phase-only or hidden orbit, is flagged. The same report from a terminal:
+
+```
+npm run queue -- --vault "C:Zenkar's Vault"                # the queue + launch count; exits 1 if a note is flagged
+npm run queue -- --vault "C:Zenkar's Vault" --write-base   # also write the Base
+```
+
+A `Transmission Queue.base` you made yourself (without the publisher's header) is never overwritten.
+
 Pages published from Obsidian live in `src/content/posts/<slug>/` with a header saying so. Edit the note and republish rather than editing those files, because they're overwritten. The publisher refuses to overwrite a page you wrote by hand in the repo.
 
 ---
@@ -281,9 +298,10 @@ Name a file `.mdx` instead of `.md` to use components inside a post. Plain `.md`
 
 Open `src/site.config.ts`:
 
-1. **Channels.** Fill in `email`, `github`, `linkedin` and so on. Anything left empty is hidden, so no placeholder links ever go live.
+1. **Channels.** Fill in `email`, `github`, `linkedin` and so on. Anything left empty is hidden, so no placeholder links ever go live. Use a dedicated public alias for `email`, not your personal inbox. Profile links must start with `https://`, and a malformed value stops the build rather than shipping a broken link. Profiles get `rel="me"`, so Mastodon can verify them.
 2. **Name, description, latitude.** Check the `SITE` block.
-3. **Social card.** `public/og.png` is the default link-preview image (1200×630). Posts with a cover use that instead.
+3. **Analytics (optional).** `ANALYTICS.goatcounter` switches on cookie-free visit counts: create a free site at [goatcounter.com](https://www.goatcounter.com) and paste its count address (`https://<code>.goatcounter.com/count`). Blank means no script and no request at all. The site's own ~1 KB script sends only the page path, title, screen size and an external referrer; visitors with Do Not Track or Global Privacy Control on are never counted, and nothing is counted from `localhost`. Titles of pages in an orbit start with its name (`ASTRO · …`): turn on *match title* in the dashboard filter and type the orbit's name to see one orbit. Links with a `data-event` attribute (the CV download) count their clicks as events. The footer and the Observer page say which mode is on.
+4. **Social card.** `public/og.png` is the default link-preview image (1200×630). Posts with a cover use that instead.
 
 ---
 

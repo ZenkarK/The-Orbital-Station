@@ -19,7 +19,8 @@
     "check:plugin": "tsc --ignoreConfig --noEmit --allowJs --checkJs --strict --skipLibCheck --target es2022 --module nodenext --moduleResolution nodenext --lib es2022,dom --types node obsidian-plugin/main.js",
     "astro": "astro",
     "scan:secrets": "node scripts/scan-secrets.mjs",
-    "scan:media": "node scripts/scan-media.mjs"
+    "scan:media": "node scripts/scan-media.mjs",
+    "queue": "node scripts/obsidian/queue.mjs"
   },
   "dependencies": {
     "@astrojs/markdown-satteri": "^0.4.2",
