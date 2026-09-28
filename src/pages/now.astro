@@ -1,0 +1,100 @@
+---
+/* GROW-07 — "what's near this season," generated from the current phase
+   (the same clock positions the Bridge's orrery reads) plus an optional
+   short hand-written note (NOW_NOTE in site.config.ts). A phase-only orbit
+   still gets a card here — its body and phase are never hidden — but says
+   its logs are private instead of listing anything, exactly like its own
+   orbit page (src/pages/orbits/[orbit].astro). MODEL-07: getPosts() already
+   drops everything filed under a non-public orbit, so a phase-only orbit's
+   filter here is a display choice, not the thing keeping it private. */
+import Base from '../layouts/Base.astro';
+import SectionHead from '../components/SectionHead.astro';
+import TxItem from '../components/TxItem.astro';
+import Sq from '../components/Sq.astro';
+import { PHASE_LOGGED, NOW_NOTE } from '../site.config';
+import { getPosts } from '../lib/content';
+import { rankedOrbits, phaseLabel } from '../lib/orbits';
+import { isNearClock } from '../lib/orrery-layout';
+import { isListed } from '../lib/visibility';
+import { href } from '../lib/util';
+import '../styles/now.css';
+
+const posts = await getPosts();
+const ranked = rankedOrbits();
+const near = ranked.filter((r) => isNearClock(r.orbit.clock));
+const midOrbit = ranked.filter((r) => phaseLabel(r.pct) === 'MID-ORBIT');
+const logged = PHASE_LOGGED.replaceAll('-', '.');
+---
+
+<Base title="Now" description={`What's near this season, generated from the current phase — last updated ${logged}.`}>
+  <div class="page">
+    <SectionHead tag="SEC. G" />
+    <h1 class="title">What's Near</h1>
+    <p class="sec-sub">Generated straight from the current phase — the same clock positions the Bridge's orrery reads — plus a note when there's one worth adding.</p>
+
+    <div class="now-meta">
+      <span>LAST UPDATED</span>
+      <b>{logged}</b>
+    </div>
+
+    {NOW_NOTE.trim() && <p class="now-note">{NOW_NOTE}</p>}
+
+    <div class="now-list">
+      {
+        near.map(({ orbit, pct }) => {
+          const listed = isListed(orbit.id);
+          const latest = listed ? posts.filter((p) => p.data.orbit === orbit.id).slice(0, 3) : [];
+          return (
+            <section class="panel now-orbit" aria-labelledby={`now-${orbit.id}`}>
+              <header class="now-orbit-head">
+                <h2 id={`now-${orbit.id}`}>
+                  <Sq orbit={orbit.id} />
+                  {orbit.name}
+                </h2>
+                <span class="now-pct">{pct}% · NEAR</span>
+              </header>
+              <p class="now-desc">{orbit.desc}</p>
+              {listed ? (
+                latest.length > 0 ? (
+                  <div class="tx-list">
+                    {latest.map((p) => (
+                      <TxItem post={p} />
+                    ))}
+                  </div>
+                ) : (
+                  <p class="empty">NOTHING FILED HERE YET THIS SEASON.</p>
+                )
+              ) : (
+                <p class="empty">THIS ORBIT'S LOGS ARE PRIVATE — ONLY ITS BODY AND PHASE ARE SHOWN.</p>
+              )}
+              <a class="now-orbit-link" href={href(`/orbits/${orbit.id}/`)}>
+                FULL ORBIT →
+              </a>
+            </section>
+          );
+        })
+      }
+    </div>
+
+    {
+      midOrbit.length > 0 && (
+        <section class="block" aria-labelledby="now-mid">
+          <SectionHead tag="MID-ORBIT" />
+          <h2 id="now-mid" class="sr-only">Mid-orbit</h2>
+          <div class="panel" style="padding:4px 20px">
+            {midOrbit.map(({ orbit, pct }) => (
+              <a class="orbit-row" href={href(`/orbits/${orbit.id}/`)}>
+                <Sq orbit={orbit.id} />
+                <b>{orbit.name}</b>
+                <span>{orbit.desc}</span>
+                <span class="pct">
+                  {pct}% · MID-ORBIT
+                </span>
+              </a>
+            ))}
+          </div>
+        </section>
+      )
+    }
+  </div>
+</Base>

@@ -95,4 +95,45 @@ const trajectories = defineCollection({
   }),
 });
 
-export const collections = { posts, projects, library, trajectories };
+/* GROW-06 — one profile record (id 'main', the object's only top-level key)
+   backing /professional/ and the CV PDF it's generated from. A file loader
+   over an object (rather than an array) keys entries by that object's own
+   top-level keys — see astro's file() loader. */
+const profile = defineCollection({
+  loader: file('./src/content/profile.yaml'),
+  schema: z.object({
+    headline: z.string().default(''),
+    summary: z.string().default(''),
+    roles: z
+      .array(
+        z.object({
+          title: z.string(),
+          org: z.string().optional(),
+          start: z.string(),
+          end: z.string().optional(),
+          summary: z.string().default(''),
+        }),
+      )
+      .default([]),
+    expertise: z
+      .array(z.object({ area: z.string(), items: z.array(z.string()).default([]) }))
+      .default([]),
+    selectedWork: z
+      .array(
+        z.object({
+          title: z.string().optional(),
+          summary: z.string().optional(),
+          link: z.url().optional(),
+          /** Points at a Flight Log mission instead of writing title/summary by hand.
+              Non-public or draft missions still never show — see lib/content.ts. */
+          project: reference('projects').optional(),
+        }),
+      )
+      .default([]),
+    education: z
+      .array(z.object({ degree: z.string(), institution: z.string().optional(), year: z.string().optional() }))
+      .default([]),
+  }),
+});
+
+export const collections = { posts, projects, library, trajectories, profile };

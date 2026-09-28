@@ -44,6 +44,10 @@ const jsonLd = personLd(Astro.site!, {
           } If the orrery on the <a href={href('/')}>Bridge</a> says a domain is near, that's genuinely where
           my hours are going. If a mission gets scrubbed, it stays in the <a href={href('/log/')}>Flight Log</a>.
         </p>
+        <p>
+          For the parts of that record that read more like a résumé — roles, expertise, education — see the <a
+            href={href('/professional/')}>Service Record</a>, with a CV to download.
+        </p>
       </div>
       <div>
         <div class="panel reg spec">
@@ -52,6 +56,7 @@ const jsonLd = personLd(Astro.site!, {
           <div class="spec-row"><span>MISSIONS ACTIVE</span><b>{projects.filter((p) => p.data.status === 'ACTIVE').length}</b></div>
           <div class="spec-row"><span>TRANSMISSIONS SENT</span><b>{posts.length}</b></div>
           <div class="spec-row"><span>PHASE LOGGED</span><b>{PHASE_LOGGED.replaceAll('-', '.')}</b></div>
+          <div class="spec-row"><span>DETAIL</span><b><a href={href('/now/')}>WHAT'S NEAR →</a></b></div>
         </div>
         <div class="panel reg spec">
           <h2>STATION DATA</h2>

@@ -1,0 +1,126 @@
+---
+/* GROW-06 — roles, expertise, selected work and education: the parts of the
+   record that are safe to share, plus a CV PDF built from this same data
+   (cv.pdf.ts). Everything here comes from src/content/profile.yaml through
+   lib/content.ts; a blank section (an empty array, or a blank string) simply
+   isn't rendered — see that file's header comment for what to fill in. */
+import Base from '../layouts/Base.astro';
+import SectionHead from '../components/SectionHead.astro';
+import { SITE } from '../site.config';
+import { getProfile, getSelectedWork } from '../lib/content';
+import { href } from '../lib/util';
+import '../styles/professional.css';
+
+const profile = await getProfile();
+const selectedWork = await getSelectedWork();
+const expertise = profile.expertise.filter((e) => e.items.length > 0);
+const isExternal = (url: string) => /^https?:\/\//.test(url);
+---
+
+<Base
+  title="Professional"
+  description={profile.headline || `Roles, expertise and education for ${SITE.author}, plus a downloadable CV.`}
+>
+  <div class="page">
+    <SectionHead tag="SEC. F" />
+    <h1 class="title">Service Record</h1>
+    <p class="sec-sub">Roles, expertise and education — the parts of the record that are safe to make public.</p>
+
+    <div class="prof-intro">
+      {
+        profile.headline && (
+          <div class="prof-headline">
+            <p class="prof-lede">{profile.headline}</p>
+            {profile.summary && <p>{profile.summary}</p>}
+          </div>
+        )
+      }
+      <a class="btn primary" href={href('/cv.pdf')} data-event="cv-download">
+        DOWNLOAD CV — PDF
+      </a>
+    </div>
+
+    {
+      profile.roles.length > 0 && (
+        <section class="block" aria-labelledby="prof-roles">
+          <SectionHead tag="ROLES" />
+          <h2 id="prof-roles" class="sr-only">Roles</h2>
+          <div class="role-list">
+            {profile.roles.map((r) => (
+              <article class="panel role">
+                <div class="role-head">
+                  <h3>{r.title}</h3>
+                  <span class="role-span">{[r.org, [r.start, r.end].filter(Boolean).join('–')].filter(Boolean).join(' · ')}</span>
+                </div>
+                {r.summary && <p>{r.summary}</p>}
+              </article>
+            ))}
+          </div>
+        </section>
+      )
+    }
+
+    {
+      expertise.length > 0 && (
+        <section class="block" aria-labelledby="prof-expertise">
+          <SectionHead tag="EXPERTISE" />
+          <h2 id="prof-expertise" class="sr-only">Expertise</h2>
+          <div class="expertise-grid">
+            {expertise.map((e) => (
+              <div class="panel expertise-area">
+                <h3>{e.area}</h3>
+                <p>{e.items.join(' · ')}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+      )
+    }
+
+    {
+      selectedWork.length > 0 && (
+        <section class="block" aria-labelledby="prof-work">
+          <SectionHead tag="SELECTED WORK" link={{ href: '/log/', label: 'FULL FLIGHT LOG →' }} />
+          <h2 id="prof-work" class="sr-only">Selected work</h2>
+          <div class="mission-cards">
+            {selectedWork.map((w) =>
+              w.link ? (
+                <a
+                  class="panel mission-card"
+                  href={w.link}
+                  target={isExternal(w.link) ? '_blank' : undefined}
+                  rel={isExternal(w.link) ? 'noopener noreferrer' : undefined}
+                >
+                  <h3>{w.title}</h3>
+                  <p>{w.summary}</p>
+                </a>
+              ) : (
+                <div class="panel mission-card">
+                  <h3>{w.title}</h3>
+                  <p>{w.summary}</p>
+                </div>
+              ),
+            )}
+          </div>
+        </section>
+      )
+    }
+
+    {
+      profile.education.length > 0 && (
+        <section class="block" aria-labelledby="prof-edu">
+          <SectionHead tag="EDUCATION" />
+          <h2 id="prof-edu" class="sr-only">Education</h2>
+          <div class="panel spec" style="max-width:520px">
+            {profile.education.map((ed) => (
+              <div class="spec-row">
+                <span>{ed.degree}</span>
+                <b>{[ed.institution, ed.year].filter(Boolean).join(' · ')}</b>
+              </div>
+            ))}
+          </div>
+        </section>
+      )
+    }
+  </div>
+</Base>

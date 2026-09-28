@@ -1,0 +1,85 @@
+/* =============================================================
+   /professional/ — GROW-06. Tokens and shared classes (.panel, .spec,
+   .spec-row, .mission-cards, .btn, …) come from styles/global.css;
+   this file only adds what's specific to the Service Record layout.
+   ============================================================= */
+
+.prof-intro {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: clamp(20px, 4vw, 36px);
+  flex-wrap: wrap;
+  margin-bottom: clamp(40px, 6vw, 64px);
+  padding-bottom: clamp(28px, 5vw, 44px);
+  border-bottom: 2px solid var(--line);
+}
+.prof-headline {
+  max-width: 62ch;
+  color: var(--dim);
+  font-size: 16px;
+}
+.prof-headline p + p {
+  margin-top: 10px;
+}
+.prof-lede {
+  color: var(--fg);
+  font-size: 21px;
+  line-height: 1.35;
+}
+
+/* ---------- roles ---------- */
+.role-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.role {
+  padding: 18px 20px;
+}
+.role-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 6px 16px;
+}
+.role-head h3 {
+  font-size: 17px;
+  text-transform: uppercase;
+  font-stretch: 104%;
+}
+.role-span {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  color: var(--faint);
+  white-space: nowrap;
+}
+.role p {
+  margin-top: 8px;
+  color: var(--dim);
+  font-size: 14.5px;
+}
+
+/* ---------- expertise ---------- */
+.expertise-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 16px;
+}
+.expertise-area {
+  padding: 16px 18px;
+}
+.expertise-area h3 {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  color: var(--accent);
+  margin-bottom: 8px;
+}
+.expertise-area p {
+  color: var(--dim);
+  font-size: 13.5px;
+  line-height: 1.5;
+}

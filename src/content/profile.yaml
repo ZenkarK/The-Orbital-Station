@@ -1,0 +1,29 @@
+# THE SERVICE RECORD — professional facts for /professional/ and the CV PDF
+# it generates from the same data (GROW-06). Fill in the arrays below with
+# whatever you're comfortable sharing publicly; an empty array (or a blank
+# string) simply doesn't render — nothing broken, and nothing you haven't
+# written yet, ever reaches a visitor. Never put employer-confidential detail
+# (client names, internal metrics, proprietary systems, compensation) in any
+# field — roles[].summary especially.
+#
+#   roles:        [{ title, org?, start, end?, summary }]     — start/end as "2024" or "2024-06"
+#   expertise:    [{ area, items: [...] }]                    — e.g. area: Systems Engineering
+#   selectedWork: [{ title, summary, link? } | { project: <id> }]
+#   education:    [{ degree, institution?, year? }]
+#
+# selectedWork can point at a public Flight Log mission instead of writing its
+# own title/summary — set `project` to one of the ids in src/content/projects/
+# (e.g. `project: orbital-station`). A mission that's a draft, or filed under a
+# hidden/phase-only orbit, never shows here either way (MODEL-07) — content.ts
+# is the only place this file is read from.
+
+main:
+  headline: Systems engineer in medical imaging. Astrophysicist and aerospace-trained.
+  summary: >-
+    The through-line is the same across all of it: complex systems, taken seriously —
+    architecture, instrumentation, and honest telemetry, whether the system is a
+    scanner, a trading engine, or this station.
+  roles: []
+  expertise: []
+  selectedWork: []
+  education: []

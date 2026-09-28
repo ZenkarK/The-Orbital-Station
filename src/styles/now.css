@@ -1,0 +1,104 @@
+/* =============================================================
+   /now/ — GROW-07. Tokens and shared classes (.panel, .empty, .tx-list,
+   .orbit-row, .block, …) come from styles/global.css; this file only
+   adds what's specific to the "what's near" layout.
+   ============================================================= */
+
+.now-meta {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 10px;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  color: var(--faint);
+  margin-bottom: 28px;
+}
+.now-meta b {
+  color: var(--fg);
+  font-weight: 700;
+}
+.now-note {
+  max-width: 62ch;
+  color: var(--dim);
+  font-size: 16px;
+  padding: 16px 18px;
+  border-left: 3px solid var(--accent);
+  background: var(--panel);
+  margin-bottom: clamp(32px, 5vw, 48px);
+}
+
+.now-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 18px;
+}
+.now-orbit {
+  padding: 20px 22px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.now-orbit-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+.now-orbit-head h2 {
+  display: flex;
+  align-items: center;
+  gap: 0.4em;
+  font-size: 18px;
+  text-transform: uppercase;
+  font-stretch: 104%;
+}
+.now-pct {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  color: var(--accent);
+  white-space: nowrap;
+}
+.now-desc {
+  color: var(--dim);
+  font-size: 14px;
+}
+.now-orbit .tx-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+/* TxItem's own layout (global.css) puts the date in a fixed 112px column
+   beside the title, and only stacks them below a 640px *viewport*. These
+   cards are far narrower than that at any viewport (three-up on desktop),
+   so left as-is the date/title pairing would cramp — force the same
+   stacked layout the site already uses on narrow screens, unconditionally,
+   since a now-orbit card is never as wide as a full transmissions list. */
+.now-orbit .tx-head {
+  grid-template-columns: 1fr;
+}
+.now-orbit .tx-excerpt,
+.now-orbit .tx-meta {
+  grid-column: 1;
+}
+.now-orbit .tx-read {
+  margin-left: 0;
+}
+.now-orbit .empty {
+  padding: 20px 14px;
+  font-size: 10.5px;
+}
+.now-orbit-link {
+  align-self: flex-start;
+  font-family: var(--mono);
+  font-size: 9.5px;
+  letter-spacing: 0.16em;
+  color: var(--dim);
+  text-decoration: none;
+  margin-top: auto;
+  padding-top: 4px;
+}
+.now-orbit-link:hover {
+  color: var(--accent);
+}

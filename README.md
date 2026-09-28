@@ -312,6 +312,8 @@ no visible loss).
 | **Orrery / current phase** | `ORBITS[].clock` in `src/site.config.ts` | Edit by hand when the season changes |
 | **Manual** | `src/pages/manual.astro` | Edit by hand |
 | **Observer** (about) | `src/pages/observer.astro` | Edit by hand |
+| **Professional** (roles, expertise, selected work, education) + CV PDF | `src/content/profile.yaml` — a blank section just doesn't render | Edit by hand — see the comment header in that file |
+| **Now** (what's near this season) | Generated from `ORBITS[].clock`; the note is `NOW_NOTE` in `src/site.config.ts` | Edit `NOW_NOTE` by hand — blank means no note shows |
 
 **Project frontmatter:** `title`, `summary`, `orbit`, `status` (`PLANNED | ACTIVE | COMPLETE | SCRUBBED`), and optionally `started`, `ended`, `order` (lower lists first), `stack: [..]`, `repo: https://…`, `demo: https://…`.
 
@@ -340,7 +342,7 @@ Netlify, Cloudflare Pages and Vercel detect Astro automatically. Import the GitH
 
 ## 8. What's in the box
 
-- **Pages:** Bridge (home + interactive orrery), Transmissions (filterable by orbit and kind, with year archive, tags and prev/next), Flight Log with per-mission pages, Library (shelf filters), Trajectories, one page per orbit, Manual, Observer, Search, and a 404.
+- **Pages:** Bridge (home + interactive orrery), Transmissions (filterable by orbit and kind, with year archive, tags and prev/next), Flight Log with per-mission pages, Library (shelf filters), Trajectories, one page per orbit, Manual, Observer, Professional (roles, expertise, selected work, education, plus a `/cv.pdf` generated from the same data), Now (what's near this season), Search, and a 404.
 - **Reading:** light and dark themes, self-hosted fonts, KaTeX math, callouts, reading times, table of contents, copy buttons on code, print styles.
 - **Discovery:** RSS at `/rss.xml` (full text) plus one per orbit (`/orbits/<id>/rss.xml`, public orbits only) and a JSON Feed at `/feed.json`, `sitemap-index.xml` (with `lastmod`), `robots.txt`, canonical URLs, a generated Open Graph/Twitter share image per transmission, mission and orbit (see [Social cards](#social-cards) above), and `Person`/`BlogPosting`/`BreadcrumbList` structured data. A moved or removed page redirects from its old address (`src/redirects.json`, kept up to date by the publisher).
 - **Search:** press <kbd>/</kbd> or <kbd>Ctrl</kbd>+<kbd>K</kbd> anywhere. The index is built at deploy time (`/search.json`) with no third-party service.
@@ -354,7 +356,8 @@ src/
 │   ├── posts/            ← transmissions (.md / .mdx, or folders with index.md)
 │   ├── projects/         ← Flight Log missions
 │   ├── library.yaml
-│   └── trajectories.yaml
+│   ├── trajectories.yaml
+│   └── profile.yaml      ← roles, expertise, selected work, education (/professional/, /cv.pdf)
 ├── pages/                ← one file per route
 ├── components/           ← Orrery, Header, Footer, SearchDialog, …
 ├── layouts/Base.astro    ← <head>, SEO, header/footer shell (feeds, JSON-LD, OG/Twitter)

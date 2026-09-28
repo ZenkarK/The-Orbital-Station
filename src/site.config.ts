@@ -81,6 +81,13 @@ export const ANALYTICS = {
 export const PHASE_LOGGED = '2026-09-26';
 
 /**
+ * GROW-07 — a short hand-written line for /now/, on top of the orbits it
+ * generates from the phase above. Shown only when non-empty — leave it blank
+ * and the page just runs on the phase data, nothing broken or placeholder-y.
+ */
+export const NOW_NOTE = '';
+
+/**
  * How many orbits can honestly run NEAR at once. The Manual's rule is
  * "only one or two run close at a time"; past this ceiling the build
  * warns and the Bridge says so.
