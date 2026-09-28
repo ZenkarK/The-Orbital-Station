@@ -1,18 +1,10 @@
 ---
-/** RSS plus whichever channels are filled in within site.config.ts. */
+/** RSS plus whichever channels are filled in within site.config.ts (LIVE-03). */
 import { SITE } from '../site.config';
 import { href } from '../lib/util';
+import { channelLinks } from '../lib/channels';
 
-const c = SITE.channels;
-const links = [
-  { label: 'RSS FEED', url: href('/rss.xml'), me: false },
-  c.email && { label: 'EMAIL', url: `mailto:${c.email}`, me: false },
-  c.github && { label: 'GITHUB', url: c.github, me: true },
-  c.linkedin && { label: 'LINKEDIN', url: c.linkedin, me: true },
-  c.mastodon && { label: 'MASTODON', url: c.mastodon, me: true },
-  c.bluesky && { label: 'BLUESKY', url: c.bluesky, me: true },
-  c.x && { label: 'X', url: c.x, me: true },
-].filter(Boolean) as { label: string; url: string; me: boolean }[];
+const links = [{ label: 'RSS FEED', url: href('/rss.xml'), me: false }, ...channelLinks(SITE.channels)];
 ---
 
 <div class="channels">

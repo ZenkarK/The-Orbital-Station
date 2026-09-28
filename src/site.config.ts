@@ -38,6 +38,21 @@ export const SITE = {
   },
 } as const;
 
+/*
+ * ANALYTICS — cookie-free visit counts (LIVE-04). Blank means off: no script
+ * and no request leaves the page. To switch it on, create a free site at
+ * https://www.goatcounter.com and paste its count address here, e.g.
+ *   goatcounter: 'https://<code>.goatcounter.com/count'
+ * No cookies and no personal data are sent; visitors with Do Not Track or
+ * Global Privacy Control switched on are never counted. Each page reports its
+ * path, title and external referrer; pages in an orbit prefix the title with
+ * the orbit's name, so typing "ASTRO ·" into the dashboard's filter (with
+ * "match title" on) shows one orbit.
+ */
+export const ANALYTICS = {
+  goatcounter: '',
+} as const;
+
 /* -------------------------------------------------------------
    THE ORBITS
    Order is ring order, innermost first: the foundations everything

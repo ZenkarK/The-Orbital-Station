@@ -1,0 +1,50 @@
+---
+/* LIVE-04 — cookie-free visit counts. Base.astro renders this only when
+   ANALYTICS.goatcounter is set in site.config.ts; with it blank, no script
+   and no request exist. One count per page view; any element with a
+   `data-event="<name>"` attribute (the CV download, say) counts a click too. */
+import { ANALYTICS } from '../site.config';
+
+interface Props {
+  /** Name of the orbit the page belongs to, e.g. "ASTRO" — prefixed to the counted title. */
+  orbit?: string;
+}
+const { orbit } = Astro.props;
+---
+
+<meta name="station:beacon" content={ANALYTICS.goatcounter} data-orbit={orbit || undefined} />
+
+<script>
+  import { shouldCount, hitUrl, orbitTitle } from '../lib/beacon';
+
+  const meta = document.querySelector<HTMLMetaElement>('meta[name="station:beacon"]');
+  const nav = navigator as Navigator & { globalPrivacyControl?: boolean };
+  const visitor = {
+    dnt: nav.doNotTrack ?? (window as Window & { doNotTrack?: string }).doNotTrack,
+    gpc: nav.globalPrivacyControl,
+    webdriver: nav.webdriver,
+    hostname: location.hostname,
+    protocol: location.protocol,
+  };
+
+  if (meta?.content && shouldCount(visitor)) {
+    const endpoint = meta.content;
+    const send = (url: string) => {
+      if (!navigator.sendBeacon?.(url)) new Image().src = url;
+    };
+    send(
+      hitUrl(endpoint, {
+        path: location.pathname,
+        title: orbitTitle(document.title, meta.dataset.orbit),
+        referrer: document.referrer,
+        host: location.host,
+        screen: [screen.width, screen.height, devicePixelRatio || 1],
+      }),
+    );
+    document.addEventListener('click', (e) => {
+      const el = (e.target as Element | null)?.closest<HTMLElement>('[data-event]');
+      const name = el?.dataset.event;
+      if (name) send(hitUrl(endpoint, { path: name, title: el.textContent?.trim() || name, event: true }));
+    });
+  }
+</script>

@@ -2,7 +2,7 @@
 import Base from '../layouts/Base.astro';
 import SectionHead from '../components/SectionHead.astro';
 import Channels from '../components/Channels.astro';
-import { SITE, PHASE_LOGGED } from '../site.config';
+import { SITE, PHASE_LOGGED, ANALYTICS } from '../site.config';
 import { getPosts, getProjects } from '../lib/content';
 import { rankedOrbits } from '../lib/orbits';
 import { href } from '../lib/util';
@@ -31,8 +31,11 @@ const phase = rankedOrbits()
           honest telemetry. This site applies those habits to the one system I actually run end to end.
         </p>
         <p>
-          Everything here is written by hand in plain text and built into a static site: no tracking, no ads, no
-          algorithm. If the orrery on the <a href={href('/')}>Bridge</a> says a domain is near, that's genuinely where
+          Everything here is written by hand in plain text and built into a static site: {
+            ANALYTICS.goatcounter
+              ? 'no cookies, no ads, no algorithm. Visits are counted anonymously with GoatCounter, and not at all when your browser sends Do Not Track or Global Privacy Control.'
+              : 'no tracking, no ads, no algorithm.'
+          } If the orrery on the <a href={href('/')}>Bridge</a> says a domain is near, that's genuinely where
           my hours are going. If a mission gets scrubbed, it stays in the <a href={href('/log/')}>Flight Log</a>.
         </p>
       </div>

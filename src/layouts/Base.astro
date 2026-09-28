@@ -6,11 +6,13 @@ import '@fontsource/space-mono/700.css';
 import '@fontsource/space-mono/400-italic.css';
 import '../styles/global.css';
 
-import { SITE } from '../site.config';
+import { SITE, ANALYTICS } from '../site.config';
 import { href } from '../lib/util';
 import Header from '../components/Header.astro';
 import Footer from '../components/Footer.astro';
 import SearchDialog from '../components/SearchDialog.astro';
+import Analytics from '../components/Analytics.astro';
+import { orbitById } from '../lib/orbits';
 
 interface Props {
   /** Page name; the site name is appended automatically. Omit on the home page. */
@@ -24,6 +26,8 @@ interface Props {
   modified?: Date;
   tags?: string[];
   noindex?: boolean;
+  /** Id of the orbit the page belongs to (posts, missions, orbit pages) — lets analytics count per orbit. */
+  orbit?: string;
 }
 
 const {
@@ -36,6 +40,7 @@ const {
   modified,
   tags = [],
   noindex = false,
+  orbit,
 } = Astro.props;
 
 const description = rawDescription?.trim() || SITE.description;
@@ -87,6 +92,7 @@ const rss = href('/rss.xml');
         if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t;
       } catch (e) {}
     </script>
+    {ANALYTICS.goatcounter && <Analytics orbit={orbit ? orbitById(orbit).name : undefined} />}
     <slot name="head" />
   </head>
   <body>

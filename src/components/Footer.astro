@@ -1,5 +1,5 @@
 ---
-import { SITE } from '../site.config';
+import { SITE, ANALYTICS } from '../site.config';
 import { href } from '../lib/util';
 import SectionHead from './SectionHead.astro';
 import Channels from './Channels.astro';
@@ -43,6 +43,6 @@ const cols = [
   </div>
   <p class="foot-line">
     KEPT BY {SITE.author.toUpperCase()} — SYSTEMS ENGINEER IN MEDICAL IMAGING · ASTROPHYSICIST BY TRAINING · {SITE.latitude}<br />
-    © {year} · SET IN ARCHIVO &amp; SPACE MONO · BUILT STATIC WITH ASTRO · NO TRACKING, NO ADS
+    © {year} · SET IN ARCHIVO &amp; SPACE MONO · BUILT STATIC WITH ASTRO · {ANALYTICS.goatcounter ? 'COOKIE-FREE VISIT COUNTS, NO ADS' : 'NO TRACKING, NO ADS'}
   </p>
 </footer>
