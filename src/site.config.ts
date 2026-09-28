@@ -52,8 +52,32 @@ export const SITE = {
    `folders` are the Obsidian vault folders (and their subfolders)
    whose notes land in this orbit by default when published. The
    deepest match wins, so Finance/Ventures beats Finance.
+
+   `visibility` is how much of an orbit the site shows:
+     'public'     — everything filed there is listed (the usual case).
+     'phase-only' — the body and its phase show on the orrery and the
+                    orbit's page, but nothing filed there is built,
+                    listed, searched, fed or mapped.
+     'hidden'     — the orbit doesn't appear anywhere, and nothing
+                    filed there is built.
+   The publisher asks for a deliberate yes before sending a note to a
+   phase-only or hidden orbit: the file still lands in the public repo.
    ------------------------------------------------------------- */
 export const PHASE_LOGGED = '2026-09-26';
+
+/**
+ * How many orbits can honestly run NEAR at once. The Manual's rule is
+ * "only one or two run close at a time"; past this ceiling the build
+ * warns and the Bridge says so.
+ */
+export const NEAR_CAPACITY = 3;
+
+/**
+ * SENSITIVE FOLDERS — vault folders (and everything below them) that hold
+ * private material by nature. Publishing a note from one needs a deliberate
+ * yes: the box in the Transmit dialog, or --confirm-sensitive on the CLI.
+ */
+export const SENSITIVE_FOLDERS = ['Work', 'Finance', 'Health', 'Family and Friends'];
 
 export const ORBITS = [
   {
@@ -62,6 +86,7 @@ export const ORBITS = [
     color: '#D45666',
     clock: '11:00',
     folders: ['Health'],
+    visibility: 'phase-only',
     desc: 'The vessel everything else rides in — training, movement, sleep, and the maintenance that keeps the rest possible.',
   },
   {
@@ -70,6 +95,7 @@ export const ORBITS = [
     color: '#EA91BC',
     clock: '12:15',
     folders: ['Family and Friends'],
+    visibility: 'phase-only',
     desc: 'Family and friends — the relationships that never show up in a log but hold the whole system together.',
   },
   {
@@ -78,6 +104,7 @@ export const ORBITS = [
     color: '#0F9293',
     clock: '3:20',
     folders: ['Philosophy'],
+    visibility: 'public',
     desc: "Philosophy as practice — meaning, mortality, free will, and the questions that don't resolve but do clarify.",
   },
   {
@@ -86,6 +113,7 @@ export const ORBITS = [
     color: '#7CA53D',
     clock: '10:30',
     folders: ['Personal Development', 'Productivity and Efficiency'],
+    visibility: 'public',
     desc: 'Getting better on purpose — habits, focus, and the systems behind the systems.',
   },
   {
@@ -94,6 +122,7 @@ export const ORBITS = [
     color: '#B559A3',
     clock: '8:20',
     folders: ['Learning and Languages'],
+    visibility: 'public',
     desc: 'Learning for its own sake — new languages, new grammars, new ways of carving up the world.',
   },
   {
@@ -102,6 +131,7 @@ export const ORBITS = [
     color: '#9D8FD0',
     clock: '7:00',
     folders: ['Astrophysics'],
+    visibility: 'public',
     desc: 'First love. Astrophysics, dark skies, and the long view that keeps the rest in scale.',
   },
   {
@@ -110,6 +140,7 @@ export const ORBITS = [
     color: '#C97F5F',
     clock: '4:10',
     folders: ['Cooking', 'Photography'],
+    visibility: 'public',
     desc: 'Hands and senses — cooking, photography, and the pursuits chosen purely for aliveness.',
   },
   {
@@ -118,6 +149,7 @@ export const ORBITS = [
     color: '#37D2F2',
     clock: '1:30',
     folders: ['Travel'],
+    visibility: 'public',
     desc: 'Travel and the bucket list — going somewhere unfamiliar to recalibrate what normal is.',
   },
   {
@@ -126,14 +158,16 @@ export const ORBITS = [
     color: '#8FAE8B',
     clock: '11:50',
     folders: ['Writing'],
+    visibility: 'public',
     desc: 'Transmissions, essays, and a science-fantasy series in the making. Thinking, made durable.',
   },
   {
     id: 'systems',
     name: 'SYSTEMS',
-    color: '#7FA6C9',
+    color: '#4BACD9',
     clock: '12:40',
     folders: ['Work', 'Aerospace Engineering', 'Technology'],
+    visibility: 'public',
     desc: 'Engineering as a way of seeing — architecture, instrumentation, and the discipline of making complex things reliable.',
   },
   {
@@ -142,17 +176,23 @@ export const ORBITS = [
     color: '#C9A24B',
     clock: '2:30',
     folders: ['Finance'],
+    visibility: 'public',
     desc: 'Capital as stored energy. Trading systems, long-horizon investing, and the honest study of risk.',
   },
   {
     id: 'venture',
     name: 'VENTURE',
-    color: '#D97A45',
+    color: '#F96328',
     clock: '9:40',
     folders: ['Finance/Ventures'],
+    visibility: 'public',
     desc: 'Things built to leave the pad — products, experiments, small deliberate bets.',
   },
 ] as const;
+
+export type OrbitVisibility = 'public' | 'phase-only' | 'hidden';
+// A typo in any orbit's `visibility` fails the type check here.
+ORBITS satisfies readonly { visibility: OrbitVisibility }[];
 
 export type Orbit = (typeof ORBITS)[number];
 export type OrbitId = Orbit['id'];

@@ -13,6 +13,9 @@ npm-debug.log*
 .env.*
 !.env.example
 
+# the plan (PRD, backlog, research) stays local — never in the public repo
+docs/
+
 # local Claude Code settings
 .claude/settings.local.json
 

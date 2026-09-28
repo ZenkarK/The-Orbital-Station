@@ -3,8 +3,9 @@ import Base from '../../layouts/Base.astro';
 import SectionHead from '../../components/SectionHead.astro';
 import TxItem from '../../components/TxItem.astro';
 import Sq from '../../components/Sq.astro';
-import { ORBITS, POST_KINDS, type PostKind } from '../../site.config';
+import { POST_KINDS, type PostKind } from '../../site.config';
 import { getPosts, getTags } from '../../lib/content';
+import { displayedOrbits } from '../../lib/visibility';
 import { href } from '../../lib/util';
 
 const posts = await getPosts();
@@ -16,7 +17,7 @@ for (const p of posts) {
   if (!byYear.has(y)) byYear.set(y, []);
   byYear.get(y)!.push(p);
 }
-const orbitsUsed = ORBITS.filter((o) => posts.some((p) => p.data.orbit === o.id));
+const orbitsUsed = displayedOrbits.filter((o) => posts.some((p) => p.data.orbit === o.id));
 const kindsUsed = (Object.keys(POST_KINDS) as PostKind[]).filter((k) => posts.some((p) => p.data.kind === k));
 const showFilters = posts.length > 1 && (orbitsUsed.length > 1 || kindsUsed.length > 1);
 ---

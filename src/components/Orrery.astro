@@ -2,8 +2,9 @@
 /* The Bridge orrery: server-rendered at the logged phase (works without JS),
    then enhanced client-side — drag, keyboard, focus, reset. Nothing a visitor
    moves is saved; the logged state lives in site.config.ts. */
-import { ORBITS, PHASE_LOGGED } from '../site.config';
+import { PHASE_LOGGED } from '../site.config';
 import { clockToDeg, proximity, orbitRadius, orbitCountWord } from '../lib/orbits';
+import { displayedOrbits, isListed } from '../lib/visibility';
 import { placeLabels } from '../lib/orrery-layout';
 import { href, longDate } from '../lib/util';
 
@@ -17,7 +18,9 @@ const C = 320;
 /* Label metrics for the build (Space Mono at the desktop size); the browser re-measures. */
 const LABEL = { h: 10.5, charW: 10.5 * 0.68, bodyR: 7, gap: 5 };
 const rad = (d: number) => (d * Math.PI) / 180;
-const bodies = ORBITS.map((o) => {
+/* A hidden orbit has no ring here at all; a phase-only orbit keeps its ring and
+   body but never a "linked" count (nothing filed there is counted). */
+const bodies = displayedOrbits.map((o) => {
   const deg = clockToDeg(o.clock);
   const r = orbitRadius(o);
   const a = rad(deg);
@@ -30,6 +33,7 @@ const bodies = ORBITS.map((o) => {
     y: C + Math.sin(a) * r,
     url: href(`/orbits/${o.id}/`),
     count: counts[o.id] ?? 0,
+    listed: isListed(o.id),
   };
 });
 const ranked = [...bodies].sort((a, b) => b.pct - a.pct);
@@ -45,7 +49,9 @@ const crowds = (y: number) =>
   bodies.some((b) => Math.abs(labels[b.id].x - C) < (b.name.length * LABEL.charW) / 2 + 20 && Math.abs(labels[b.id].y - y) < 14);
 const logged = longDate(new Date(PHASE_LOGGED));
 const defaultCaption = `Phase is honest scheduling: whatever sits near 12 o'clock is what this season is actually for. Logged ${logged}.`;
-const data = bodies.map(({ id, name, color, r, deg, desc, url, count, clock }) => ({ id, name, color, r, deg, desc, url, count, clock }));
+const data = bodies.map(({ id, name, color, r, deg, desc, url, count, clock, listed }) => ({
+  id, name, color, r, deg, desc, url, count, clock, listed,
+}));
 ---
 
 <div class="panel reg orrery-panel" data-orrery>
@@ -123,7 +129,10 @@ const data = bodies.map(({ id, name, color, r, deg, desc, url, count, clock }) =
 <script>
   import { placeLabels } from '../lib/orrery-layout';
 
-  type Body = { id: string; name: string; color: string; r: number; deg: number; desc: string; url: string; count: number; clock: string };
+  type Body = {
+    id: string; name: string; color: string; r: number; deg: number; desc: string;
+    url: string; count: number; clock: string; listed: boolean;
+  };
 
   const root = document.querySelector<HTMLElement>('[data-orrery]');
   if (root) init(root);
@@ -232,9 +241,12 @@ const data = bodies.map(({ id, name, color, r, deg, desc, url, count, clock }) =
       }
       const b = bodies.find((x) => x.id === selected)!;
       const p = prox(phase[b.id]);
+      // Phase-only orbits show phase only — no "linked" count, this orbit's logs are private.
+      const linked = b.listed ? ` · ${b.count} LINKED` : '';
+      const desc = b.listed ? b.desc : `${b.desc} This orbit's logs are private.`;
       caption.innerHTML =
-        `<b>${b.name} · ${p}% NEAR · ${toClock(phase[b.id])} · ${b.count} LINKED</b><br>` +
-        `${b.desc}<br><a href="${b.url}">OPEN THE ${b.name} ORBIT →</a>`;
+        `<b>${b.name} · ${p}% NEAR · ${toClock(phase[b.id])}${linked}</b><br>` +
+        `${desc}<br><a href="${b.url}">OPEN THE ${b.name} ORBIT →</a>`;
     }
 
     function select(id: string | null) {

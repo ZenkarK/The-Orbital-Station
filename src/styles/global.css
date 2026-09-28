@@ -74,7 +74,7 @@
   --shadow: 4px 4px 0 var(--shadow-c);
   --shadow-sm: 2px 2px 0 var(--shadow-c);
   --header-h: 96px;
-  --c-note: #7fa6c9;
+  --c-note: #4bacd9;
 }
 
 @view-transition {
@@ -586,6 +586,11 @@ main {
   font-size: 28px;
   line-height: 1;
   color: var(--accent);
+}
+/* MODEL-03 — the Bridge's RUNNING NEAR figure switches to caution colour
+   once more orbits are NEAR than the station's stated capacity. */
+.d-big.over {
+  color: var(--caution);
 }
 .d-sub {
   font-size: 13.5px;
@@ -1441,7 +1446,7 @@ main {
   --co: #c9a24b;
 }
 .prose .callout[data-callout='warning'] {
-  --co: #d97a45;
+  --co: #f96328;
 }
 .prose .callout[data-callout='failure'],
 .prose .callout[data-callout='danger'],

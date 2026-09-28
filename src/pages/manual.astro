@@ -2,11 +2,13 @@
 import Base from '../layouts/Base.astro';
 import SectionHead from '../components/SectionHead.astro';
 import Sq from '../components/Sq.astro';
-import { ORBITS, SITE } from '../site.config';
-import { orbitProximity, orbitCountWord } from '../lib/orbits';
+import { SITE } from '../site.config';
+import { orbitProximity, orbitCountWord, nearCapacityStatus } from '../lib/orbits';
+import { displayedOrbits } from '../lib/visibility';
 import { href } from '../lib/util';
 
 const constants = SITE.constants.map((c) => c.toLowerCase());
+const capacity = nearCapacityStatus();
 ---
 
 <Base title="The Manual" description="The Orbital Model, written down — the operating theory behind everything else on this station.">
@@ -26,6 +28,10 @@ const constants = SITE.constants.map((c) => c.toLowerCase());
           Most advice about a full life asks for <strong>balance</strong> — equal weight to everything, every week. I
           have never seen balance survive contact with an actual week. The Orbital Model replaces it with
           <strong>phase</strong>: every domain stays in the system permanently, but only one or two run close at a time.
+        </p>
+        <p>
+          The station holds itself to that: a ceiling of {capacity.capacity} orbits running NEAR at once, checked on
+          every build, with the <a href={href('/')}>Bridge</a> flagging it the moment the count runs over.
         </p>
       </div>
     </section>
@@ -67,7 +73,7 @@ const constants = SITE.constants.map((c) => c.toLowerCase());
           on, the outer rings are the work that faces the world.
         </p>
         {
-          ORBITS.map((o) => (
+          displayedOrbits.map((o) => (
             <a class="orbit-row" href={href(`/orbits/${o.id}/`)}>
               <Sq orbit={o.id} />
               <b>{o.name}</b>

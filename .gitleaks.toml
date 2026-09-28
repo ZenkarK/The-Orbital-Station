@@ -1,0 +1,12 @@
+# Secret-scanning config for CI only (see .github/workflows/ci.yml, job
+# "secrets", which runs the gitleaks binary). The publisher's own
+# `scan:secrets` step (scripts/scan-secrets.mjs, scripts/obsidian/secrets.mjs)
+# is a separate, hand-rolled scanner with its own allowlist (.secrets-allow) —
+# it does not read this file, and an [[allowlist]] entry added here won't
+# quiet it, or vice versa. Starts from gitleaks' built-in rule set; add an
+# [[allowlist]] entry only when a rule proves to be a real false positive
+# here — ideally this file never needs one.
+title = "Orbital Station gitleaks config"
+
+[extend]
+useDefault = true

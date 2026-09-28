@@ -1,6 +1,8 @@
 # Builds the station and publishes it to GitHub Pages on every push to main.
 # One-time setup: repo Settings → Pages → Build and deployment → Source: "GitHub Actions".
 # Custom domain? Add it under Settings → Pages; the URL is picked up automatically.
+# Checks (type/content, tests, plugin typecheck, build, secret + media scans)
+# run first via ci.yml — build only starts once those pass.
 name: Deploy to GitHub Pages
 
 on:
@@ -10,16 +12,24 @@ on:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 concurrency:
   group: pages
   cancel-in-progress: false
 
 jobs:
+  ci:
+    uses: ./.github/workflows/ci.yml
+    permissions:
+      contents: read
+
   build:
+    needs: ci
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
     steps:
       - uses: actions/checkout@v5
 
@@ -34,12 +44,6 @@ jobs:
 
       - run: npm ci
 
-      - name: Type & content check
-        run: npm run check
-
-      - name: Tests
-        run: npm test
-
       - name: Build
         run: npm run build
         env:
@@ -53,6 +57,9 @@ jobs:
   deploy:
     needs: build
     runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}

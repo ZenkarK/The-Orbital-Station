@@ -4,6 +4,7 @@ import mdx from '@astrojs/mdx';
 import sitemap from '@astrojs/sitemap';
 import { satteri } from '@astrojs/markdown-satteri';
 import { mathPlugin, calloutPlugin, createBasePathPlugin } from './src/lib/markdown-plugins.mjs';
+import { nearCapacityIntegration } from './src/lib/near-capacity-integration.mjs';
 
 /*
  * SITE_URL  — the public origin, e.g. https://zenkar.dev. Used for canonical
@@ -34,6 +35,7 @@ export default defineConfig({
     sitemap({
       filter: (page) => !page.includes('/search/'),
     }),
+    nearCapacityIntegration(),
   ],
   markdown: {
     // Obsidian-compatible: $math$ / $$math$$ (KaTeX) and > [!note] callouts.

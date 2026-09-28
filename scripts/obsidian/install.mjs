@@ -9,6 +9,10 @@
    plugin at this repo and at the Node.js running this script, and turns
    it on (when Obsidian is closed — otherwise it tells you the one click).
    Safe to run again after pulling changes.
+
+   Whether Obsidian is running is normally detected with tasklist/pgrep.
+   Set ORBITAL_OBSIDIAN_RUNNING=1 or =0 to override that detection (used
+   by tests, and useful if the process check is wrong on your machine).
    ============================================================= */
 import fs from 'node:fs';
 import os from 'node:os';
@@ -41,6 +45,8 @@ function knownVaults() {
 }
 
 function obsidianRunning() {
+  if (process.env.ORBITAL_OBSIDIAN_RUNNING === '1') return true;
+  if (process.env.ORBITAL_OBSIDIAN_RUNNING === '0') return false;
   try {
     if (process.platform === 'win32') {
       return /obsidian\.exe/i.test(execFileSync('tasklist', ['/FI', 'IMAGENAME eq Obsidian.exe', '/NH'], { encoding: 'utf8' }));

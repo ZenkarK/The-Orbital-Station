@@ -15,21 +15,56 @@ export async function loadSiteConfig(repo) {
 }
 
 /**
+ * Segment-normalized form of a vault path or a configured folder name, for matching:
+ * forward slashes, each path segment trimmed of stray whitespace, lowercased. The trim
+ * matters because Windows folder names can end in a space (a sync client, a mobile
+ * Obsidian client, or a stray keystroke while renaming can all produce one) and
+ * fs.readdirSync — the same API the publisher itself walks the vault with — hands it
+ * back exactly as-is, so "Health" and "Health " are the same folder for our purposes
+ * even though a plain string compare would treat them as unrelated.
+ */
+function normalizePath(value) {
+  return String(value)
+    .replaceAll('\\', '/')
+    .split('/')
+    .map((seg) => seg.trim())
+    .join('/')
+    .toLowerCase();
+}
+
+/**
  * The orbit a vault note belongs to by where it lives: the orbit whose `folders`
- * holds the note's deepest enclosing folder (whole folder names, any letter case),
- * or null when no orbit claims it.
+ * holds the note's deepest enclosing folder (whole folder names, any letter case,
+ * stray leading/trailing whitespace on a segment ignored), or null when no orbit
+ * claims it.
  */
 export function orbitForNote(notePath, orbits) {
-  const dir = String(notePath).replaceAll('\\', '/').toLowerCase();
+  const dir = normalizePath(notePath);
   let best = null;
   let depth = 0;
   for (const o of orbits) {
     for (const folder of o.folders ?? []) {
-      const f = folder.replace(/^\/+|\/+$/g, '').toLowerCase();
+      const f = normalizePath(folder).replace(/^\/+|\/+$/g, '');
       if (f && dir.startsWith(`${f}/`) && f.length > depth) (best = o.id), (depth = f.length);
     }
   }
   return best;
+}
+
+/**
+ * The sensitive folder (from site.config.ts SENSITIVE_FOLDERS) a vault path lives
+ * inside — the whole folder, subfolders included, matched case-insensitively and with
+ * stray leading/trailing whitespace on a segment ignored — or null when nothing there
+ * claims it. Returns the folder name as written in SENSITIVE_FOLDERS (original case),
+ * for author-facing messages.
+ */
+export function sensitiveFolderFor(notePath, folders) {
+  const p = normalizePath(notePath);
+  for (const folder of folders ?? []) {
+    const f = normalizePath(folder).replace(/^\/+|\/+$/g, '');
+    if (f && p.startsWith(`${f}/`)) return folder;
+  }
+  return null;
 }
 
 /** Flight Log missions available to file posts under. */

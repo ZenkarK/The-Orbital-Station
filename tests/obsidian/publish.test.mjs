@@ -8,6 +8,7 @@ import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import jsYaml from 'js-yaml';
+import sharp from 'sharp';
 import { publish } from '../../scripts/obsidian/publish.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
@@ -99,12 +100,18 @@ test('republishing an unchanged note does nothing and reports it online', async 
 });
 
 test('a changed image counts as a change', async () => {
+  // A changed *pixel*, not just a trailing byte: the clean-room step (PRIV-04) truncates
+  // anything after IEND as "trailing" data, so appending a stray byte would scrub away to
+  // nothing and look unchanged — the published copy is the scrubbed bytes, not the vault's.
   const png = note('attachments/jet diagram.png');
   const original = fs.readFileSync(png);
-  fs.writeFileSync(png, Buffer.concat([original, Buffer.from([0])]));
+  const dest = path.join(repo, 'src/content/posts/relativistic-jets/jet-diagram.png');
+  const before = fs.readFileSync(dest);
+  const modified = await sharp(original).negate().png().toBuffer();
+  fs.writeFileSync(png, modified);
   const res = await run('Astrophysics/Relativistic Jets.md');
   assert.equal(res.action, 'updated');
-  assert.ok(fs.readFileSync(path.join(repo, 'src/content/posts/relativistic-jets/jet-diagram.png')).equals(fs.readFileSync(png)));
+  assert.ok(!fs.readFileSync(dest).equals(before), 'the published image changed');
   fs.writeFileSync(png, original);
   await run('Astrophysics/Relativistic Jets.md');
 });
@@ -222,12 +229,14 @@ test('validates properties with clear messages', async () => {
 });
 
 test("without station-orbit, the note's vault folder picks the orbit; an explicit one still wins", async () => {
+  // Health/ is a SENSITIVE_FOLDERS entry (and BODY is phase-only), so both publishes need the
+  // guard's deliberate yes — that's PRIV-01/MODEL-07 territory, exercised in gates.test.mjs.
   writeNote('Health/Base Building.md', '---\nstation: post\n---\nZone 2, mostly.\n');
-  const res = await run('Health/Base Building.md', { 'no-commit': true });
+  const res = await run('Health/Base Building.md', { 'no-commit': true, 'confirm-sensitive': true });
   assert.equal(res.ok, true, res.error);
   assert.equal(astroFrontmatter(page('posts/base-building')).orbit, 'body');
   writeNote('Health/Chosen.md', '---\nstation: post\nstation-orbit: words\n---\nx\n');
-  await run('Health/Chosen.md', { 'no-commit': true });
+  await run('Health/Chosen.md', { 'no-commit': true, 'confirm-sensitive': true });
   assert.equal(astroFrontmatter(page('posts/chosen')).orbit, 'words');
   for (const slug of ['base-building', 'chosen']) fs.rmSync(path.join(repo, 'src/content/posts', slug), { recursive: true });
 });
@@ -376,7 +385,10 @@ test('install.mjs keeps other plugins and settings, tolerates a BOM, refuses unr
   fs.mkdirSync(path.join(v, '.obsidian', 'plugins', 'orbital-station-publisher'), { recursive: true });
   fs.writeFileSync(path.join(v, '.obsidian', 'community-plugins.json'), '﻿["dataview","templater-obsidian"]');
   fs.writeFileSync(path.join(v, '.obsidian', 'plugins', 'orbital-station-publisher', 'data.json'), '﻿{"push":false,"siteUrl":"https://zenkar.dev/"}');
-  execFileSync(process.execPath, [path.join(ROOT, 'scripts', 'obsidian', 'install.mjs'), v], { encoding: 'utf8' });
+  execFileSync(process.execPath, [path.join(ROOT, 'scripts', 'obsidian', 'install.mjs'), v], {
+    encoding: 'utf8',
+    env: { ...process.env, ORBITAL_OBSIDIAN_RUNNING: '0' }, // pinned: assertions below assume Obsidian is closed
+  });
   const data = JSON.parse(fs.readFileSync(path.join(v, '.obsidian', 'plugins', 'orbital-station-publisher', 'data.json'), 'utf8'));
   assert.equal(data.push, false);
   assert.equal(data.siteUrl, 'https://zenkar.dev/');
@@ -385,6 +397,22 @@ test('install.mjs keeps other plugins and settings, tolerates a BOM, refuses unr
   assert.ok(list.includes('dataview') && list.includes('templater-obsidian'));
 
   fs.writeFileSync(path.join(v, '.obsidian', 'community-plugins.json'), '{broken');
-  assert.throws(() => execFileSync(process.execPath, [path.join(ROOT, 'scripts', 'obsidian', 'install.mjs'), v], { stdio: 'pipe' }));
+  assert.throws(() => execFileSync(process.execPath, [path.join(ROOT, 'scripts', 'obsidian', 'install.mjs'), v], {
+    stdio: 'pipe',
+    env: { ...process.env, ORBITAL_OBSIDIAN_RUNNING: '0' },
+  }));
   assert.equal(fs.readFileSync(path.join(v, '.obsidian', 'community-plugins.json'), 'utf8'), '{broken');
+});
+
+test('install.mjs leaves community-plugins.json untouched and tells you what to click when Obsidian is running', () => {
+  const v = path.join(tmp, 'install-vault-running');
+  fs.mkdirSync(path.join(v, '.obsidian', 'plugins', 'orbital-station-publisher'), { recursive: true });
+  fs.writeFileSync(path.join(v, '.obsidian', 'community-plugins.json'), '["dataview"]');
+  const out = execFileSync(process.execPath, [path.join(ROOT, 'scripts', 'obsidian', 'install.mjs'), v], {
+    encoding: 'utf8',
+    env: { ...process.env, ORBITAL_OBSIDIAN_RUNNING: '1' }, // pinned: assertions below assume Obsidian is open
+  });
+  const list = JSON.parse(fs.readFileSync(path.join(v, '.obsidian', 'community-plugins.json'), 'utf8'));
+  assert.deepEqual(list, ['dataview']); // not enabled while Obsidian is running
+  assert.match(out, /Settings.*Community plugins/s);
 });

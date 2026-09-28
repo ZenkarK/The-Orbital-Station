@@ -4,9 +4,10 @@ import Orrery from '../components/Orrery.astro';
 import SectionHead from '../components/SectionHead.astro';
 import TxItem from '../components/TxItem.astro';
 import MissionCard from '../components/MissionCard.astro';
-import { SITE, ORBITS } from '../site.config';
+import { SITE } from '../site.config';
 import { getPosts, getProjects, getLibrary, getTrajectories, postsForProject } from '../lib/content';
-import { rankedOrbits, orbitCountWord, capitalize } from '../lib/orbits';
+import { rankedOrbits, orbitCountWord, capitalize, nearCapacityStatus } from '../lib/orbits';
+import { displayedOrbits } from '../lib/visibility';
 import { href, two } from '../lib/util';
 
 const [posts, projects, library, trajectories] = await Promise.all([
@@ -17,7 +18,7 @@ const [posts, projects, library, trajectories] = await Promise.all([
 ]);
 
 const counts = Object.fromEntries(
-  ORBITS.map((o) => [
+  displayedOrbits.map((o) => [
     o.id,
     posts.filter((p) => p.data.orbit === o.id).length +
       projects.filter((p) => p.data.orbit === o.id).length +
@@ -27,10 +28,11 @@ const counts = Object.fromEntries(
 );
 const latest = posts.slice(0, 4);
 const active = projects.filter((p) => p.data.status === 'ACTIVE');
-const near = rankedOrbits()
+const nearest = rankedOrbits()
   .slice(0, 2)
   .map((r) => r.orbit.name)
   .join(' · ');
+const capacity = nearCapacityStatus();
 const year = new Date().getUTCFullYear();
 ---
 
@@ -108,8 +110,10 @@ const year = new Date().getUTCFullYear();
         </a>
         <a class="panel" href={href('/manual/')}>
           <span class="d-tag">RUNNING NEAR</span>
-          <span class="d-big" style="font-size:17px;line-height:1.3">{near}</span>
-          <p class="d-sub">what this season is for</p>
+          <span class:list={['d-big', { over: capacity.over }]} style="font-size:17px;line-height:1.3">
+            {capacity.near} NEAR · CAPACITY {capacity.capacity}
+          </span>
+          <p class="d-sub">{capacity.over ? `over capacity — ${nearest} lead` : `${nearest} lead this season`}</p>
         </a>
       </div>
     </section>

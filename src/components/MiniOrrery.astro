@@ -1,7 +1,7 @@
 ---
 /** Static orrery highlighting a single orbit — used on orbit pages. */
-import { ORBITS } from '../site.config';
 import { clockToDeg, orbitRadius } from '../lib/orbits';
+import { displayedOrbits } from '../lib/visibility';
 
 interface Props {
   focus: string;
@@ -9,7 +9,8 @@ interface Props {
 const { focus } = Astro.props;
 const C = 320;
 const rad = (d: number) => (d * Math.PI) / 180;
-const bodies = ORBITS.map((o) => {
+/* A hidden orbit has no ring, even in the background of another orbit's page. */
+const bodies = displayedOrbits.map((o) => {
   const a = rad(clockToDeg(o.clock));
   const r = orbitRadius(o);
   return { ...o, r, x: C + Math.cos(a) * r, y: C + Math.sin(a) * r, on: o.id === focus };

@@ -40,6 +40,41 @@
      --force                 allow replacing a page not published from this note
      --json                  machine-readable result (used by the plugin; implies --no-write-back)
      --describe              print the site's orbits, kinds, missions and git status
+     --confirm-sensitive     the deliberate yes: publish from a sensitive folder, or into a
+                              phase-only/hidden orbit anyway (the Transmit dialog's checkbox
+                              sets this same flag; see "guard" below)
+     --allow-metadata        copy an attachment the clean-room step would otherwise block,
+                              unchanged, with a warning (CLI only — never bypasses the secret scan)
+
+   Gates (M0 "Ignition" — PRIV-01, PRIV-03, PRIV-04, MODEL-07)
+
+     A dry run (and the JSON result of a real publish) always carries:
+       guard    { confirm, confirmed, reasons: string[] }
+                confirm is true when this publish needs a deliberate yes — the note, an
+                embedded note, or a copied attachment lives in a SENSITIVE_FOLDERS folder
+                (site.config.ts), or the target orbit isn't 'public'. confirmed reflects
+                --confirm-sensitive (or the plugin's checkbox). reasons are plain sentences
+                naming the folder/note/orbit, for display.
+       secrets  Finding[] (scripts/obsidian/secrets.mjs) found in the published output
+                (frontmatter + converted body) or a copied attachment, after .secrets-allow
+                filtering. Redacted preview only — never the real value. Reported against the
+                vault source when one is found (e.g. "Notes/Setup.md" line 12), else the page
+                file. A secret the converter strips (inside %%comments%%, say) is never
+                published and never appears here.
+       media    [{ file (vault path), dest (repo-relative), kind, removed: string[], reason? }]
+                one entry per copied attachment: kind is 'clean' | 'scrubbed' | 'text' |
+                'unscrubbed' (allow-metadata bypass) | 'blocked'; removed is category labels
+                only, never values (scripts/obsidian/scrub/index.mjs).
+       blocked  string[] — everything that would stop a real publish: secret findings
+                (formatFinding), unscrubbable attachments, oversized attachments. Separate
+                from guard: guard needs a yes, blocked needs a fix.
+     A real (non-dry-run) publish checks guard and blocked *before* writing, removing,
+     committing or pushing anything: guard.confirm && !guard.confirmed, or any blocked
+     line, throws a UserError listing every reason. Unpublish never needs confirmation.
+
+     Attachments ≥100 MiB are blocked (GitHub's own limit); ≥50 MiB is a warning only.
+     Set ORBITAL_SCRUB_TOOLS=none to force the optional exiftool/ffmpeg helpers off, for a
+     deterministic clean-room step in tests.
    ============================================================= */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -49,6 +84,8 @@ import { Document as YamlDocument, visit as yamlVisit, parseDocument } from 'yam
 import jsYaml from 'js-yaml';
 import { convertBody, extOf, IMAGE_EXT, NEVER_COPY } from './convert.mjs';
 import { splitFrontmatter, findVaultRoot, readVaultSettings, indexVault, createResolver } from './vault.mjs';
+import { scanText, scanBuffer, loadAllowlist, filterAllowed, formatFinding } from './secrets.mjs';
+import { scrub, findTools } from './scrub/index.mjs';
 import {
   loadSiteConfig,
   listProjects,
@@ -60,6 +97,7 @@ import {
   siteUrlFor,
   normalizeSiteUrl,
   orbitForNote,
+  sensitiveFolderFor,
   DEPLOY_BRANCH,
 } from './site.mjs';
 
@@ -72,7 +110,10 @@ export class UserError extends Error {}
 
 /* ---------- args ---------- */
 function parseArgs(argv) {
-  const flags = new Set(['unpublish', 'dry-run', 'no-commit', 'no-push', 'no-write-back', 'force', 'json', 'describe', 'help']);
+  const flags = new Set([
+    'unpublish', 'dry-run', 'no-commit', 'no-push', 'no-write-back', 'force', 'json', 'describe', 'help',
+    'confirm-sensitive', 'allow-metadata',
+  ]);
   const opts = { _: [] };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
@@ -132,6 +173,68 @@ const safeFrontmatter = (text) => {
 };
 const bodyOf = (text) => text.replace(/^---[\s\S]*?\n---[ \t]*\n/, '').trim();
 
+/* ---------- size gate (PRIV-04 / §10.2): a file GitHub itself would reject ---------- */
+export const MAX_ATTACHMENT_BYTES = 100 * 1024 * 1024; // GitHub refuses a blob this large or bigger
+export const WARN_ATTACHMENT_BYTES = 50 * 1024 * 1024; // GitHub's own "large file" warning threshold
+const formatSize = (bytes) => `${(bytes / (1024 * 1024)).toFixed(bytes / (1024 * 1024) >= 100 ? 0 : 1)} MiB`;
+/**
+ * Pure so it's testable without building a real 100 MiB fixture.
+ * @returns {{blocked?: string, warning?: string}}
+ */
+export function sizeCheck(vaultPath, bytes) {
+  if (bytes >= MAX_ATTACHMENT_BYTES) {
+    return { blocked: `"${vaultPath}" is ${formatSize(bytes)} — GitHub refuses files 100 MiB or larger. Leave it out, or link to it elsewhere.` };
+  }
+  if (bytes >= WARN_ATTACHMENT_BYTES) {
+    return { warning: `"${vaultPath}" is ${formatSize(bytes)} — attachments this large slow down cloning and pushing.` };
+  }
+  return {};
+}
+
+/* ---------- sensitive-area guard (PRIV-01) + orbit visibility (MODEL-07) ---------- */
+function visibilityReason(orbitObj) {
+  const hidden = orbitObj.visibility === 'hidden';
+  const clause = hidden ? "the site won't show this page anywhere" : "the site won't list this page";
+  return `${orbitObj.name} is ${hidden ? 'hidden' : 'phase-only'}: ${clause}, but the file becomes public in the site's repository.`;
+}
+
+/** Everything the guard needs to know before it can decide, gathered into plain sentences. */
+function sensitiveGuard({ notePath, embeddedNotePaths, assetVaultPaths, orbitObj, sensitiveFolders, confirmed }) {
+  const reasons = [];
+  const noteFolder = sensitiveFolderFor(notePath, sensitiveFolders);
+  if (noteFolder) reasons.push(`The note is in the sensitive "${noteFolder}" folder.`);
+  for (const p of embeddedNotePaths) {
+    if (p === notePath) continue;
+    const f = sensitiveFolderFor(p, sensitiveFolders);
+    if (f) reasons.push(`The embedded note "${p}" is in the sensitive "${f}" folder.`);
+  }
+  for (const vaultPath of assetVaultPaths) {
+    const f = sensitiveFolderFor(vaultPath, sensitiveFolders);
+    if (f) reasons.push(`The attachment "${vaultPath}" is in the sensitive "${f}" folder.`);
+  }
+  if (orbitObj && orbitObj.visibility && orbitObj.visibility !== 'public') reasons.push(visibilityReason(orbitObj));
+  return { confirm: reasons.length > 0, confirmed: !!confirmed, reasons };
+}
+
+/** Findings in the note's own text and every embedded note's text, by fingerprint — so an
+ *  output-level finding can be reported against its real source ("Notes/Setup.md" line 12)
+ *  instead of the page it ended up on. First occurrence wins. */
+function sourceFindings(vault, notePath, embeddedNotePaths) {
+  const map = new Map();
+  const scanOne = (p) => {
+    let raw;
+    try {
+      raw = fs.readFileSync(path.join(vault, p), 'utf8');
+    } catch {
+      return; // unreadable — nothing to attribute to it
+    }
+    for (const f of scanText(raw, { file: p })) if (!map.has(f.fingerprint)) map.set(f.fingerprint, f);
+  };
+  scanOne(notePath);
+  for (const p of embeddedNotePaths) if (p !== notePath) scanOne(p);
+  return map;
+}
+
 /* ---------- pages already in the repo ---------- */
 
 /** Every page the publisher wrote (a marked index.md), in both collections. */
@@ -182,10 +285,10 @@ function handWrittenAt(repo, collection, slug) {
   return false;
 }
 
-/** Do the page's current files match the assets we're about to write? */
+/** Do the page's current files match the (already scrubbed) assets we're about to write? */
 function sameAssets(page, assets) {
   if (!page) return false;
-  const want = new Map([...assets.values()].map((a) => [path.resolve(a.dest), a.src]));
+  const want = new Map([...assets.values()].map((a) => [path.resolve(a.dest), a]));
   const have = [];
   const walk = (d) => {
     if (!fs.existsSync(d)) return;
@@ -198,10 +301,10 @@ function sameAssets(page, assets) {
   walk(page.dir);
   walk(page.filesDir);
   if (have.length !== want.size || have.some((p) => !want.has(p))) return false;
-  for (const [dest, src] of want) {
-    const a = fs.readFileSync(src);
-    const b = fs.readFileSync(dest);
-    if (a.length !== b.length || !a.equals(b)) return false;
+  for (const [dest, a] of want) {
+    const want2 = a.buffer ?? fs.readFileSync(a.src); // buffer is set once the clean-room step has run
+    const have2 = fs.readFileSync(dest);
+    if (want2.length !== have2.length || !want2.equals(have2)) return false;
   }
   return true;
 }
@@ -265,9 +368,10 @@ async function describe(repo) {
     deployBranch: DEPLOY_BRANCH,
     remote,
     siteUrl: siteUrlFor(repo, remote),
-    orbits: cfg.ORBITS.map((o) => ({ id: o.id, name: o.name, folders: [...(o.folders ?? [])] })),
+    orbits: cfg.ORBITS.map((o) => ({ id: o.id, name: o.name, folders: [...(o.folders ?? [])], visibility: o.visibility ?? 'public' })),
     kinds: Object.entries(cfg.POST_KINDS).map(([id, label]) => ({ id, label })),
     statuses: [...cfg.PROJECT_STATUSES],
+    sensitiveFolders: [...(cfg.SENSITIVE_FOLDERS ?? [])],
     projects: listProjects(repo),
   };
 }
@@ -484,12 +588,18 @@ export async function publish(opts) {
     return pg ? `/${pg.route}/${pg.slug}/` : null;
   };
 
+  // Every note whose text actually gets pulled into this page (transclusion) — PRIV-01 needs
+  // these for the sensitive-folder guard, PRIV-03 needs them to attribute a secret to its source.
+  const embeddedNotePaths = new Set();
   const { markdown, embeds } = convertBody(body, {
     title,
     notePath,
     strictLineBreaks,
     resolve,
-    readBody: (p) => readNote(p).body,
+    readBody: (p) => {
+      embeddedNotePaths.add(p);
+      return readNote(p).body;
+    },
     pageUrl: pageUrlOf,
     asset,
     warnings,
@@ -508,6 +618,49 @@ export async function publish(opts) {
   }
   if (!markdown.trim() && type === 'post') warnings.push('The note has no body text.');
 
+  /* --- clean-room (PRIV-04) + size gate: every asset is scrubbed before it's written, and its
+         scrubbed bytes (never the original) are what a later "unchanged" check compares against --- */
+  const allowMetadata = !!opts['allow-metadata'];
+  const scrubTools = process.env.ORBITAL_SCRUB_TOOLS === 'none' ? { exiftool: null, ffmpeg: null } : findTools();
+  const media = [];
+  const blocked = [];
+  const attachmentFindings = [];
+  for (const [vaultPath, a] of assets) {
+    const dest = path.relative(repo, a.dest).replaceAll('\\', '/');
+    let raw;
+    try {
+      raw = fs.readFileSync(a.src);
+    } catch (e) {
+      blocked.push(`"${vaultPath}" couldn't be read (${e.message}).`);
+      media.push({ file: vaultPath, dest, kind: 'blocked', removed: [], reason: e.message });
+      continue;
+    }
+    const r = await scrub(raw, { name: vaultPath, allowMetadata, tools: scrubTools });
+    if (!r.ok) {
+      blocked.push(r.reason);
+      media.push({ file: vaultPath, dest, kind: 'blocked', removed: [], reason: r.reason });
+      continue;
+    }
+    a.buffer = r.buffer;
+    media.push({ file: vaultPath, dest, kind: r.kind, removed: r.removed, ...(r.reason ? { reason: r.reason } : {}) });
+    if (r.kind === 'unscrubbed') warnings.push(`"${vaultPath}" was copied unchanged (--allow-metadata): ${r.reason}`);
+    const size = sizeCheck(vaultPath, r.buffer.length);
+    if (size.blocked) blocked.push(size.blocked);
+    else if (size.warning) warnings.push(size.warning);
+    attachmentFindings.push(...scanBuffer(r.buffer, { file: vaultPath }));
+  }
+
+  /* --- sensitive-area guard (PRIV-01) + orbit-visibility guard (MODEL-07) --- */
+  const orbitObj = cfg.ORBITS.find((o) => o.id === orbit);
+  const guard = sensitiveGuard({
+    notePath,
+    embeddedNotePaths,
+    assetVaultPaths: assets.keys(),
+    orbitObj,
+    sensitiveFolders: cfg.SENSITIVE_FOLDERS,
+    confirmed: opts['confirm-sensitive'],
+  });
+
   /* --- "updated": only when the words change on a later day --- */
   if (type === 'post' && prior) {
     const prevUpdated = asDate(priorFields.updated, 'updated') ?? undefined;
@@ -516,6 +669,19 @@ export async function publish(opts) {
     if (fields.updated && fields.updated <= fields.date) fields.updated = undefined;
   }
   const output = `${emitFrontmatter(id, fields)}\n${markdown.trim()}\n`;
+
+  /* --- secrets (PRIV-03): scan what's actually published, and attribute each finding back to
+         where it came from in the vault when we can (by fingerprint), else the page itself --- */
+  const pageFileRel = path.relative(repo, pageFile).replaceAll('\\', '/');
+  const sources = sourceFindings(vault, notePath, embeddedNotePaths);
+  const bodyFindings = scanText(output, { file: pageFileRel }).map((f) => {
+    const src = sources.get(f.fingerprint);
+    return src ? { ...f, file: src.file, line: src.line, column: src.column } : f;
+  });
+  const allow = loadAllowlist(repo);
+  const secrets = filterAllowed([...bodyFindings, ...attachmentFindings], allow);
+  for (const f of secrets) blocked.push(formatFinding(f));
+
   const stale = mine.filter((p) => !(p.collection === collection && p.slug === slug));
   const unchanged = !!atTarget && isMine(atTarget) && atTarget.text === output && sameAssets(atTarget, assets);
   const action = unchanged ? 'unchanged' : atTarget ? 'updated' : stale.length ? 'moved' : 'published';
@@ -533,6 +699,10 @@ export async function publish(opts) {
     existing: mine.map((p) => `/${p.route}/${p.slug}/`),
     files: [pageFile, ...[...assets.values()].map((a) => a.dest)].map((f) => path.relative(repo, f).replaceAll('\\', '/')),
     embeds,
+    guard,
+    secrets,
+    media,
+    blocked,
     warnings: [
       ...embeds.map((e) => `Included the full text of "${e}" (embedded) — it becomes public with this page.`),
       ...stale.map((p) => `Moves the page from /${p.route}/${p.slug}/ — the old address stops working.`),
@@ -540,6 +710,20 @@ export async function publish(opts) {
     ],
   };
   if (opts['dry-run']) return { ...result, dryRun: true, markdown: output };
+
+  /* --- gates: every check runs before anything is written, removed, committed or pushed --- */
+  if (guard.confirm && !guard.confirmed) {
+    throw new UserError(
+      [
+        'This publish needs a deliberate yes first:',
+        ...guard.reasons,
+        'Tick the sensitive-content box in the Transmit dialog, or pass --confirm-sensitive.',
+      ].join('\n'),
+    );
+  }
+  if (blocked.length) {
+    throw new UserError(['This publish is blocked:', ...blocked].join('\n'));
+  }
 
   /* --- write: stale pages go, the page folder is rebuilt from scratch --- */
   for (const p of stale) {
@@ -552,7 +736,7 @@ export async function publish(opts) {
     fs.mkdirSync(pageDir, { recursive: true });
     for (const a of assets.values()) {
       fs.mkdirSync(path.dirname(a.dest), { recursive: true });
-      fs.copyFileSync(a.src, a.dest);
+      fs.writeFileSync(a.dest, a.buffer); // the clean-room (scrubbed) bytes, never the vault original directly
     }
     fs.writeFileSync(pageFile, output);
   }
@@ -586,17 +770,29 @@ export async function publish(opts) {
 /* ---------- CLI ---------- */
 async function main() {
   const opts = parseArgs(process.argv.slice(2));
+  /** Guard reasons, blocked lines and a "Clean room" line per file — shown on every successful
+   *  human-mode result (dry run or real publish); a failed publish shows them inside obj.error instead. */
+  const printChecks = (obj) => {
+    for (const r of obj.guard?.reasons ?? []) console.error(`    ! ${r}`);
+    for (const b of obj.blocked ?? []) console.error(`    ✗ ${b}`);
+    for (const m of obj.media ?? []) {
+      const bits = [m.kind, ...(m.removed?.length ? [`removed ${m.removed.join(', ')}`] : []), ...(m.reason ? [m.reason] : [])];
+      console.error(`    Clean room: "${m.file}" — ${bits.join('; ')}`);
+    }
+  };
   const out = (obj) => {
     if (opts.json) process.stdout.write(`${JSON.stringify(obj)}\n`);
     else if (!obj.ok) console.error(`\n  ✗ ${obj.error}\n`);
     else if (obj.markdown) {
       process.stdout.write(obj.markdown);
+      printChecks(obj);
       for (const w of obj.warnings ?? []) console.error(`  · ${w}`);
     } else if (obj.orbits) console.log(JSON.stringify(obj, null, 2));
     else {
       console.log(`\n  ✓ ${obj.action.toUpperCase()}: ${obj.title}  →  ${obj.url ?? obj.path ?? (obj.removed ?? []).join(', ')}`);
       if (obj.note) console.log(`    ${obj.note}`);
       if (obj.error) console.log(`    ! ${obj.error}`);
+      printChecks(obj);
       for (const w of obj.warnings ?? []) console.log(`    · ${w}`);
       console.log('');
     }

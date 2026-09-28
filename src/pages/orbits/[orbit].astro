@@ -5,15 +5,22 @@ import TxItem from '../../components/TxItem.astro';
 import MissionCard from '../../components/MissionCard.astro';
 import MiniOrrery from '../../components/MiniOrrery.astro';
 import Sq from '../../components/Sq.astro';
-import { ORBITS, type Orbit } from '../../site.config';
+import { type Orbit } from '../../site.config';
 import { getPosts, getProjects, getLibrary, getTrajectories, postsForProject } from '../../lib/content';
 import { orbitProximity, phaseLabel } from '../../lib/orbits';
+import { displayedOrbits, visibilityOf } from '../../lib/visibility';
 import { href } from '../../lib/util';
 
+/* A hidden orbit gets no page at all: not in getStaticPaths, so it 404s.
+   prev/next walk the displayed ring only, so navigation never lands on one. */
 export function getStaticPaths() {
-  return ORBITS.map((o, i) => ({
+  return displayedOrbits.map((o, i) => ({
     params: { orbit: o.id },
-    props: { o, prev: ORBITS[(i - 1 + ORBITS.length) % ORBITS.length], next: ORBITS[(i + 1) % ORBITS.length] },
+    props: {
+      o,
+      prev: displayedOrbits[(i - 1 + displayedOrbits.length) % displayedOrbits.length],
+      next: displayedOrbits[(i + 1) % displayedOrbits.length],
+    },
   }));
 }
 interface Props {
@@ -42,6 +49,9 @@ const EMPTY_BY_PHASE: Record<string, string> = {
 };
 const name = o.name.charAt(0) + o.name.slice(1).toLowerCase();
 const nothing = !posts.length && !projects.length && !library.length && !trajectories.length;
+/* phase-only: the body and its phase still show, but nothing filed there is
+   counted or listed — so instead of the counts row and empty-state copy, say so. */
+const phaseOnly = visibilityOf(o) === 'phase-only';
 ---
 
 <Base title={`${name} orbit`} description={o.desc}>
@@ -57,7 +67,13 @@ const nothing = !posts.length && !projects.length && !library.length && !traject
         <div class="panel spec" style="max-width:420px">
           <div class="spec-row"><span>PHASE</span><b>{pct}% · {phaseLabel(pct)}</b></div>
           <div class="spec-row"><span>CLOCK POSITION</span><b>{o.clock}</b></div>
-          <div class="spec-row"><span>TRANSMISSIONS · MISSIONS · HOLDINGS</span><b>{posts.length} · {projects.length} · {library.length}</b></div>
+          {
+            phaseOnly ? (
+              <div class="spec-row"><span>LOGS</span><b>PRIVATE</b></div>
+            ) : (
+              <div class="spec-row"><span>TRANSMISSIONS · MISSIONS · HOLDINGS</span><b>{posts.length} · {projects.length} · {library.length}</b></div>
+            )
+          }
         </div>
       </div>
       <div class="panel reg mini-orrery">
@@ -148,7 +164,13 @@ const nothing = !posts.length && !projects.length && !library.length && !traject
       )
     }
 
-    {nothing && <p class="empty block">NOTHING FILED IN THIS ORBIT YET — {EMPTY_BY_PHASE[phaseLabel(pct)]}</p>}
+    {
+      phaseOnly ? (
+        <p class="empty block">THIS ORBIT'S LOGS ARE PRIVATE — ONLY ITS BODY AND PHASE ARE SHOWN.</p>
+      ) : (
+        nothing && <p class="empty block">NOTHING FILED IN THIS ORBIT YET — {EMPTY_BY_PHASE[phaseLabel(pct)]}</p>
+      )
+    }
 
     <nav class="orbit-nav" aria-label="Other orbits">
       <a href={href(`/orbits/${prev.id}/`)}>← <Sq orbit={prev.id} />{prev.name}</a>

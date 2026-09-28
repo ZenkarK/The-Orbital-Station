@@ -7,8 +7,9 @@ import SectionHead from '../../components/SectionHead.astro';
 import TxItem from '../../components/TxItem.astro';
 import Sq from '../../components/Sq.astro';
 import { SITE, POST_KINDS } from '../../site.config';
-import { getPosts, type Post } from '../../lib/content';
+import { getPosts, SHOW_DRAFTS, type Post } from '../../lib/content';
 import { orbitById } from '../../lib/orbits';
+import { isListed } from '../../lib/visibility';
 import { href, stationDate, isoDate, longDate, readingMinutes, slugify } from '../../lib/util';
 
 export async function getStaticPaths() {
@@ -41,7 +42,13 @@ interface Props {
 const { post, newer, older, related } = Astro.props;
 const { title, date, updated, summary, orbit, kind, tags, cover, coverAlt, draft } = post.data;
 const { Content, headings } = await render(post);
-const project = post.data.project ? await getEntry(post.data.project) : undefined;
+// getEntry reaches the collection directly (content.ts's visible()+isListed filter never
+// runs on it), so a mission in a phase-only/hidden orbit, or a draft mission, must be
+// dropped here explicitly — a public post must never reveal a mission that isn't public
+// itself, whether that's because of its orbit or because it's still a draft.
+const rawProject = post.data.project ? await getEntry(post.data.project) : undefined;
+const project =
+  rawProject && isListed(rawProject.data.orbit) && (SHOW_DRAFTS || !rawProject.data.draft) ? rawProject : undefined;
 const o = orbitById(orbit);
 const toc = headings.filter((h) => (h.depth === 2 || h.depth === 3) && h.slug !== 'footnote-label');
 const hasToc = toc.length >= 3;

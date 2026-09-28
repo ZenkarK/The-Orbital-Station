@@ -9,6 +9,46 @@ export function ringRadius(index: number, count: number, inner = RING_INNER, out
   return count > 1 ? inner + ((outer - inner) * index) / (count - 1) : inner;
 }
 
+/* -------------------------------------------------------------
+   PHASE / PROXIMITY (MODEL-03)
+   The clock-to-NEAR math lives here rather than in src/lib/orbits.ts so it
+   stays import-free: Node's type-stripping can't resolve orbits.ts's
+   extensionless `from '../site.config'`, but astro.config.mjs (and its own
+   test) can load this file directly, the same way the test above does.
+   ------------------------------------------------------------- */
+
+/** "12:40" → SVG angle in degrees (0° = 3 o'clock, -90° = 12 o'clock). */
+export function clockToDeg(clock: string): number {
+  const [h = 12, m = 0] = clock.split(':').map(Number);
+  return ((h % 12) + m / 60) * 30 - 90;
+}
+
+/** 12 o'clock = 1 (NEAR), 6 o'clock = 0 (FAR). */
+export const proximity = (deg: number): number => (1 - Math.sin((deg * Math.PI) / 180)) / 2;
+
+/** A clock position as the 0–100 NEAR percentage shown across the site. */
+export function clockProximityPct(clock: string): number {
+  return Math.round(proximity(clockToDeg(clock)) * 100);
+}
+
+/** 75% or higher reads as NEAR (see `phaseLabel` in src/lib/orbits.ts). */
+export const NEAR_THRESHOLD = 75;
+
+/** Whether a clock position currently counts as running NEAR. */
+export function isNearClock(clock: string): boolean {
+  return clockProximityPct(clock) >= NEAR_THRESHOLD;
+}
+
+/**
+ * Which of the given orbits (any objects with a `clock`) are running NEAR
+ * right now. Callers decide which orbits to pass in — the build warning
+ * counts every orbit including hidden ones, the Bridge counts only the
+ * displayed ones.
+ */
+export function nearOrbits<T extends { clock: string }>(orbits: readonly T[]): T[] {
+  return orbits.filter((o) => isNearClock(o.clock));
+}
+
 export interface LabelBody {
   id: string;
   /** Body center. */

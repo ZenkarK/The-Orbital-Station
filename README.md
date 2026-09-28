@@ -24,6 +24,11 @@ The repository already exists locally with its history. To put it online:
    The first push opens a GitHub sign-in window (Git Credential Manager). After that, pushes, including the ones from Obsidian, just work.
 3. **Turn on Pages.** On GitHub: **Settings → Pages → Build and deployment → Source: GitHub Actions**. The workflow in `.github/workflows/deploy.yml` then tests, builds and deploys every push to `main`. Watch it under the **Actions** tab. The run triggered by your first push probably failed because Pages wasn't on yet. Open **Actions → Deploy to GitHub Pages → Run workflow** once to deploy.
 
+Every push and pull request also runs `.github/workflows/ci.yml`: type/content checks, the
+test suite, a build, a full-history secret scan (gitleaks), and a scan of every committed
+image/audio/video file for leftover metadata. `deploy.yml` only builds and publishes once
+those checks are green. A pull request shows all of this as status checks before you merge.
+
 Your address is worked out automatically:
 
 | Repository name | Site address |
@@ -89,6 +94,40 @@ A page belongs to the note it was published from. Renaming or moving the note ke
 - Links to unpublished notes become plain text, so private note names aren't linked.
 - **Embeds are included in full.** `![[Private note]]` inside a published note publishes that content. The dialog's dry-run box names every embedded note **before** you transmit. A `#^block` embed includes only that block (for a list item, only that item).
 
+### The gates, before anything goes public
+
+Every dry run shows what a real publish would do, and a real publish stops for anything
+below before it writes, commits or pushes a thing.
+
+- **Sensitive folders.** A note (or an embedded note, or a copied attachment) filed under
+  `Work`, `Finance`, `Health` or `Family and Friends` needs a deliberate yes: the dialog
+  shows a checkbox naming why, and you have to tick it. From the command line, pass
+  `--confirm-sensitive`. Change the list in `src/site.config.ts` → `SENSITIVE_FOLDERS`.
+- **Orbit visibility.** Each orbit is `public` (the usual case), `phase-only` (its body and
+  phase show on the Bridge and its own page, but nothing filed there is listed anywhere),
+  or `hidden` (the orbit doesn't appear at all). BODY and KIN start `phase-only`, since
+  they're the innermost, most personal orbits. Publishing into a non-public orbit needs the
+  same deliberate yes as a sensitive folder. Change an orbit's `visibility` in
+  `src/site.config.ts` → `ORBITS`.
+- **Secret scanning.** Every publish scans the converted page and any copied attachments
+  for things that look like API keys, tokens, private keys or other high-entropy secrets,
+  and blocks the publish if it finds one — naming the file and line, never the value. If
+  something is flagged that genuinely isn't a secret, the message tells you the fingerprint
+  to add to `.secrets-allow` in the repo root. Run the same scan over everything already in
+  the repo any time with `npm run scan:secrets`.
+- **Clean-room attachments.** Every image, PDF, audio and video file is stripped of hidden
+  metadata (GPS, author names, embedded paths) before it leaves the vault. A file type with
+  no scrubber available is blocked by default; `--allow-metadata` (command line only) copies
+  it through unscrubbed, with a warning, and never bypasses the secret scan. Photo GPS and
+  document authorship scrub best with **ExifTool** and video/audio with **ffmpeg** on your
+  `PATH` — without them, some formats (HEIC, WebM, OGG, Opus, AAC) are blocked rather than
+  published unscrubbed. `npm run scan:media` re-checks everything already committed
+  under `public/` and `src/content/`, and `-- --fix` cleans what it can in place.
+- **NEAR capacity.** The Manual's rule is that only a few orbits honestly run NEAR (close,
+  hot, this season) at once. `NEAR_CAPACITY` in `src/site.config.ts` sets that ceiling; the
+  build warns when more orbits than that sit NEAR, and the Bridge's telemetry caption says
+  so plainly ("N NEAR · CAPACITY C — over capacity") rather than pretending everything is fine.
+
 ### Note properties
 
 The dialog writes these for you. Edit them by hand if you prefer:
@@ -121,8 +160,14 @@ The button runs the same script you can call directly:
 ```
 npm run publish:note -- "C:\Zenkar's Vault\Astrophysics\Jets.md" --dry-run   # preview the converted page
 npm run publish:note -- "C:\Zenkar's Vault\Astrophysics\Jets.md"             # publish, commit, push
+npm run publish:note -- "C:\Zenkar's Vault\Work\Notes.md" --confirm-sensitive # the dialog's checkbox, from the CLI
 npm run publish:note -- --help
 ```
+
+`--confirm-sensitive` is the CLI equivalent of the dialog's sensitive-area checkbox
+(needed for a sensitive folder or a non-public orbit). `--allow-metadata` copies an
+attachment the clean-room step would otherwise block, unchanged, with a warning — it
+never bypasses the secret scan. See "The gates, before anything goes public" above.
 
 Like the button, the command line records `station-slug`, `station-date` and (once online) `station-published`/`station-url` in the note, so the plugin recognizes pages published either way.
 

@@ -17,7 +17,9 @@
     "obsidian:install": "node scripts/obsidian/install.mjs",
     "test": "node --test \"tests/**/*.test.mjs\"",
     "check:plugin": "tsc --ignoreConfig --noEmit --allowJs --checkJs --strict --skipLibCheck --target es2022 --module nodenext --moduleResolution nodenext --lib es2022,dom --types node obsidian-plugin/main.js",
-    "astro": "astro"
+    "astro": "astro",
+    "scan:secrets": "node scripts/scan-secrets.mjs",
+    "scan:media": "node scripts/scan-media.mjs"
   },
   "dependencies": {
     "@astrojs/markdown-satteri": "^0.4.2",
@@ -30,7 +32,9 @@
     "github-slugger": "^2.0.0",
     "js-yaml": "^4.3.2",
     "katex": "^0.18.9",
+    "pdf-lib": "^1.17.1",
     "sharp": "^0.35.4",
+    "svgo": "^4.1.0",
     "yaml": "^2.9.1"
   },
   "devDependencies": {

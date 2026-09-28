@@ -20,13 +20,18 @@ const path = require('path');
 /**
  * @typedef {{ repoPath: string, nodePath: string, siteUrl: string, defaultOrbit: string, push: boolean }} Settings
  * @typedef {{ id: string, name: string, folders?: string[] }} OrbitInfo
+ * @typedef {{ id: string, name: string, folders?: string[], visibility?: 'public'|'phase-only'|'hidden' }} OrbitDescribeInfo
  * @typedef {{ ok: boolean, error?: string, node?: string, git?: boolean, branch?: string|null, deployBranch?: string,
- *   remote?: string|null, siteUrl?: string|null, orbits?: OrbitInfo[], kinds?: {id: string, label: string}[],
- *   statuses?: string[], projects?: {id: string, title: string}[] }} SiteInfo
+ *   remote?: string|null, siteUrl?: string|null, orbits?: OrbitDescribeInfo[], kinds?: {id: string, label: string}[],
+ *   statuses?: string[], projects?: {id: string, title: string}[], sensitiveFolders?: string[] }} SiteInfo
+ * @typedef {{ confirm: boolean, confirmed: boolean, reasons: string[] }} Guard
+ * @typedef {{ file: string, line: number, column: number, rule: string, label: string, fingerprint: string, preview: string }} SecretFinding
+ * @typedef {{ file: string, dest?: string, kind: 'clean'|'scrubbed'|'text'|'unscrubbed'|'blocked', removed: string[], reason?: string }} MediaEntry
  * @typedef {{ ok: boolean, error?: string, action?: string, title?: string, slug?: string, url?: string|null,
  *   path?: string, fields?: Record<string, any>, existing?: string[], removed?: string[], embeds?: string[],
  *   committed?: boolean, pushed?: boolean, upToDate?: boolean, remote?: boolean, branch?: string|null,
- *   online?: boolean, note?: string, warnings?: string[], dryRun?: boolean }} PublishResult
+ *   online?: boolean, note?: string, warnings?: string[], dryRun?: boolean,
+ *   guard?: Guard, secrets?: SecretFinding[], media?: MediaEntry[], blocked?: string[] }} PublishResult
  * @typedef {{ type: string, title: string, slug: string, orbit: string, kind: string, status: string,
  *   date: string, summary: string, tags: string[], project: string }} Values
  */
@@ -94,6 +99,64 @@ const normalizeSiteUrl = (/** @type {string} */ v) => {
   }
 };
 
+/* ---------- the M0 gates, as pure text/logic (no DOM, no Obsidian) ----------
+   PRIV-01 sensitive-area guard · MODEL-07 orbit-visibility confirmation ·
+   PRIV-03 secrets · PRIV-04 clean-room attachments. Kept pure so the dialog's
+   own rendering logic can be unit-tested without a real Obsidian window. */
+const basename = (/** @type {unknown} */ p) => String(p ?? '').split(/[\\/]/).pop() || String(p ?? '');
+
+/** Everything that would stop a real publish — secrets already formatted, unscrubbable
+ *  or oversized attachments. Every line is ready to show as-is (redacted preview only). */
+const blockedLines = (/** @type {PublishResult | null | undefined} */ res) => (Array.isArray(res?.blocked) ? res.blocked : []);
+
+/** The sensitive-folder / non-public-orbit reasons a publish needs a deliberate yes for. Empty when none. */
+const guardReasons = (/** @type {PublishResult | null | undefined} */ res) => (res?.guard?.confirm ? (res.guard.reasons ?? []) : []);
+
+/** A stable key for "these are the same reasons" — used to decide whether the confirmation box should reset. */
+const reasonsKey = (/** @type {Guard | undefined} */ guard) => JSON.stringify(guard?.confirm ? (guard.reasons ?? []) : []);
+
+/**
+ * The checkbox never survives a dry run whose guard reasons changed (e.g. the orbit
+ * switched to a phase-only one) — it is never remembered otherwise.
+ * @param {string | null} prevKey
+ * @param {Guard | undefined} guard
+ * @param {boolean} currentlyTicked
+ * @returns {{ key: string, ticked: boolean }}
+ */
+const nextConfirmState = (prevKey, guard, currentlyTicked) => {
+  const key = reasonsKey(guard);
+  return { key, ticked: key === prevKey ? currentlyTicked : false };
+};
+
+/** One "Clean room" line per copied attachment: which categories were removed, or that none were. */
+const cleanRoomLine = (/** @type {MediaEntry} */ m) => {
+  const name = basename(m.file);
+  if (m.kind === 'unscrubbed') return `${name} — passed through unscrubbed (no clean-room tool available)${m.reason ? `: ${m.reason}` : ''}`;
+  if (m.kind === 'blocked') return `${name} — blocked${m.reason ? `: ${m.reason}` : ''}`;
+  return m.removed?.length ? `${name} — removed ${m.removed.join(', ')}` : `${name} — no hidden metadata`;
+};
+const cleanRoomLines = (/** @type {MediaEntry[] | null | undefined} */ media) => (Array.isArray(media) ? media.map(cleanRoomLine) : []);
+
+/** Transmit is only ever allowed once nothing is blocked and any needed yes has been given. */
+const canTransmit = (/** @type {PublishResult | null | undefined} */ res, /** @type {boolean} */ confirmed) => {
+  if (!res || res.ok === false) return false;
+  if (blockedLines(res).length) return false;
+  if (res.guard?.confirm && !confirmed) return false;
+  return true;
+};
+
+/** The publisher's own CLI args (argsFor), as a pure function so tests don't need a live plugin instance. */
+const buildPublishArgs = (/** @type {Values} */ v, /** @type {{ siteUrl?: string, confirmSensitive?: boolean }} */ { siteUrl, confirmSensitive } = {}) => {
+  const args = ['--type', v.type, '--title', v.title, '--slug', v.slug || slugify(v.title), '--orbit', v.orbit, '--summary', v.summary.trim()];
+  if (v.type === 'post') {
+    args.push('--kind', v.kind, '--tags', v.tags.join(','), '--project', v.project);
+    if (v.date) args.push('--date', v.date);
+  } else args.push('--status', v.status);
+  if (siteUrl) args.push('--site-url', siteUrl);
+  if (confirmSensitive) args.push('--confirm-sensitive');
+  return args;
+};
+
 class OrbitalStationPublisher extends Plugin {
   /** @type {Settings} */ settings = { ...DEFAULTS };
   busy = false;
@@ -119,8 +182,7 @@ class OrbitalStationPublisher extends Plugin {
       id: 'republish-note',
       name: 'Republish current note (skip the dialog)',
       icon: ICON,
-      checkCallback: (checking) =>
-        this.onActive(checking, (f) => this.publish(f, this.valuesFromNote(f)), (f) => this.hasPage(f)),
+      checkCallback: (checking) => this.onActive(checking, (f) => this.republish(f), (f) => this.hasPage(f)),
     });
     this.addCommand({
       id: 'unpublish-note',
@@ -313,15 +375,9 @@ class OrbitalStationPublisher extends Plugin {
     };
   }
 
-  /** @param {Values} v @returns {string[]} */
-  argsFor(v) {
-    const args = ['--type', v.type, '--title', v.title, '--slug', v.slug || slugify(v.title), '--orbit', v.orbit, '--summary', v.summary.trim()];
-    if (v.type === 'post') {
-      args.push('--kind', v.kind, '--tags', v.tags.join(','), '--project', v.project);
-      if (v.date) args.push('--date', v.date);
-    } else args.push('--status', v.status);
-    if (this.settings.siteUrl) args.push('--site-url', this.settings.siteUrl);
-    return args;
+  /** @param {Values} v @param {{ confirmSensitive?: boolean }} [opts] @returns {string[]} */
+  argsFor(v, opts) {
+    return buildPublishArgs(v, { siteUrl: this.settings.siteUrl, confirmSensitive: opts?.confirmSensitive });
   }
 
   /** @param {TFile} file */
@@ -345,6 +401,27 @@ class OrbitalStationPublisher extends Plugin {
     return this.runScript([path.join(root, file.path), '--vault', root, ...this.argsFor(v), '--dry-run']);
   }
 
+  /** "Republish, skip the dialog" — but never skips a gate: a dry run runs first, and
+   *  anything needing a deliberate yes or anything blocked opens the dialog instead.
+   *  @param {TFile} file */
+  async republish(file) {
+    const v = this.valuesFromNote(file);
+    const dry = await this.preflight(file, v);
+    if (!dry.ok) {
+      new Notice(`✗ Not transmitted — ${dry.error}`, 15000);
+      return;
+    }
+    const blocked = blockedLines(dry);
+    const reasons = guardReasons(dry);
+    if (blocked.length || reasons.length) {
+      const why = blocked.length ? blocked[0] : reasons[0];
+      new Notice(`Opening the dialog — ${why}`, 12000);
+      this.openDialog(file);
+      return;
+    }
+    await this.publish(file, v);
+  }
+
   /* ---------- publish / unpublish ---------- */
 
   /** Did the page actually reach the live site? @param {PublishResult} res */
@@ -356,9 +433,10 @@ class OrbitalStationPublisher extends Plugin {
   /**
    * @param {TFile} file
    * @param {Values} v
+   * @param {{ confirmSensitive?: boolean }} [opts]
    * @returns {Promise<PublishResult>}
    */
-  async publish(file, v) {
+  async publish(file, v, opts) {
     if (this.busy) {
       new Notice('A transmission is already under way…');
       return { ok: false, error: 'busy' };
@@ -369,7 +447,7 @@ class OrbitalStationPublisher extends Plugin {
     const progress = new Notice(`Transmitting “${v.title}”…`, 0);
     try {
       await this.flush(file);
-      const args = [path.join(root, file.path), '--vault', root, ...this.argsFor(v)];
+      const args = [path.join(root, file.path), '--vault', root, ...this.argsFor(v, opts)];
       if (!this.settings.push) args.push('--no-push');
       /** @type {PublishResult} */
       const res = await this.runScript(args);
@@ -554,8 +632,17 @@ class TransmitModal extends Modal {
     /** @type {HTMLElement | null} */ this.previewEl = null;
     /** @type {HTMLElement | null} */ this.errorEl = null;
     /** @type {HTMLElement | null} */ this.checkEl = null;
+    /** @type {HTMLElement | null} */ this.blockedEl = null;
+    /** @type {HTMLElement | null} */ this.guardEl = null;
+    /** @type {HTMLElement | null} */ this.cleanRoomEl = null;
     /** @type {HTMLInputElement | null} */ this.dateInput = null;
     /** @type {import('obsidian').ButtonComponent | null} */ this.sendBtn = null;
+    /** @type {PublishResult | null} last dry run — drives whether Transmit is enabled */
+    this.lastCheck = null;
+    // The sensitive-content checkbox: never remembered, and reset whenever the guard's
+    // reasons change (e.g. the orbit was switched to a phase-only one).
+    this.confirmSensitive = false;
+    /** @type {string | null} */ this.guardKey = null;
   }
 
   async onOpen() {
@@ -707,6 +794,12 @@ class TransmitModal extends Modal {
     const actions = contentEl.createDiv({ cls: 'oss-actions' });
     this.checkEl = actions.createDiv({ cls: 'oss-check' });
     this.checkEl.createEl('p', { cls: 'oss-muted', text: 'Checking what will be published…' });
+    this.blockedEl = actions.createDiv({ cls: 'oss-blocked' });
+    this.blockedEl.hide();
+    this.guardEl = actions.createDiv({ cls: 'oss-guard' });
+    this.guardEl.hide();
+    this.cleanRoomEl = actions.createDiv({ cls: 'oss-clean-room' });
+    this.cleanRoomEl.hide();
     const deploy = info.deployBranch ?? DEPLOY_BRANCH;
     let where;
     if (!this.plugin.settings.push) where = 'Push is off — commits stay in the site folder until you push.';
@@ -724,6 +817,7 @@ class TransmitModal extends Modal {
           .setButtonText(this.hasPage ? 'Update page' : 'Transmit')
           .onClick(() => this.submit());
       });
+    this.updateSendState();
   }
 
   siteBase() {
@@ -751,9 +845,14 @@ class TransmitModal extends Modal {
     if (!v.slug) return;
     const res = await this.plugin.preflight(this.file, v);
     if (seq !== this.checkSeq || !this.checkEl) return;
+    this.lastCheck = res;
     el.empty();
     if (!res.ok) {
       el.createEl('p', { cls: 'oss-check-problem', text: `✗ ${res.error}` });
+      this.renderBlocked(null);
+      this.renderGuard(undefined);
+      this.renderCleanRoom(null);
+      this.updateSendState();
       return;
     }
     // The dry run knows whether a page exists (e.g. published from the command line, or unpublished since).
@@ -784,6 +883,77 @@ class TransmitModal extends Modal {
       const ul = el.createEl('ul', { cls: 'oss-check-list' });
       for (const w of rest) ul.createEl('li', { text: w });
     }
+    this.renderBlocked(res);
+    this.renderGuard(res.guard);
+    this.renderCleanRoom(res.media);
+    this.updateSendState();
+  }
+
+  /** PRIV-03 secrets + PRIV-04 unscrubbable/oversized attachments — a fix is needed, not a yes.
+   *  @param {PublishResult | null} res */
+  renderBlocked(res) {
+    const el = this.blockedEl;
+    if (!el) return;
+    el.empty();
+    const lines = blockedLines(res);
+    if (!lines.length) {
+      el.hide();
+      return;
+    }
+    el.show();
+    el.createEl('p', { cls: 'oss-blocked-head', text: '⛔ Blocked — this can\'t be transmitted yet:' });
+    const ul = el.createEl('ul', { cls: 'oss-blocked-list' });
+    for (const line of lines) ul.createEl('li', { text: line });
+  }
+
+  /** PRIV-01 sensitive-area guard + MODEL-07 orbit visibility — a deliberate yes, never remembered.
+   *  @param {Guard | undefined} guard */
+  renderGuard(guard) {
+    const el = this.guardEl;
+    if (!el) return;
+    const { key, ticked } = nextConfirmState(this.guardKey, guard, this.confirmSensitive);
+    this.guardKey = key;
+    this.confirmSensitive = ticked;
+    el.empty();
+    const reasons = guard?.confirm ? (guard.reasons ?? []) : [];
+    if (!reasons.length) {
+      el.hide();
+      return;
+    }
+    el.show();
+    el.createEl('p', { cls: 'oss-guard-head', text: '⚠ This needs a deliberate yes first:' });
+    const ul = el.createEl('ul', { cls: 'oss-guard-list' });
+    for (const r of reasons) ul.createEl('li', { text: r });
+    new Setting(el).setClass('oss-guard-toggle').setName("Publish from a sensitive area — it becomes public in the site's repository").addToggle((t) =>
+      t.setValue(this.confirmSensitive).onChange((val) => {
+        this.confirmSensitive = val;
+        this.updateSendState();
+      }),
+    );
+  }
+
+  /** PRIV-04 — one quiet line per copied attachment. @param {MediaEntry[] | null | undefined} media */
+  renderCleanRoom(media) {
+    const el = this.cleanRoomEl;
+    if (!el) return;
+    el.empty();
+    const lines = cleanRoomLines(media);
+    if (!lines.length) {
+      el.hide();
+      return;
+    }
+    el.show();
+    el.createEl('p', { cls: 'oss-clean-room-head', text: 'Clean room' });
+    const ul = el.createEl('ul', { cls: 'oss-clean-room-list' });
+    (media ?? []).forEach((m, i) => {
+      const li = ul.createEl('li', { text: lines[i] });
+      if (m.kind === 'unscrubbed' || m.kind === 'blocked') li.addClass('mod-warning');
+    });
+  }
+
+  /** Transmit is disabled until nothing is blocked and any needed yes has been ticked. */
+  updateSendState() {
+    this.sendBtn?.setDisabled(!canTransmit(this.lastCheck, this.confirmSensitive));
   }
 
   validateForm() {
@@ -803,15 +973,17 @@ class TransmitModal extends Modal {
       this.errorEl?.setText(problem);
       return;
     }
+    if (!canTransmit(this.lastCheck, this.confirmSensitive)) return; // belt and braces — the button should already be disabled
     this.errorEl?.setText('');
     this.sending = true;
     this.checkSeq++; // ignore any dry run still in flight
     this.sendBtn?.setDisabled(true).setButtonText('Transmitting…');
-    const res = await this.plugin.publish(this.file, { ...this.values });
+    const res = await this.plugin.publish(this.file, { ...this.values }, { confirmSensitive: this.confirmSensitive });
     this.sending = false;
     if (res.ok) this.close();
     else {
-      this.sendBtn?.setDisabled(false).setButtonText(this.hasPage ? 'Update page' : 'Transmit');
+      this.sendBtn?.setButtonText(this.hasPage ? 'Update page' : 'Transmit');
+      this.updateSendState();
       if (res.error && res.error !== 'busy') this.errorEl?.setText(res.error);
     }
   }
@@ -966,5 +1138,20 @@ class StationSettingTab extends PluginSettingTab {
     );
   }
 }
+
+// The M0-gate rendering/logic helpers above are pure (no Obsidian, no DOM), so tests can
+// exercise them directly without a real Obsidian window. module.exports stays the plugin
+// class itself — this is attached as a property, not a second export.
+OrbitalStationPublisher.gateHelpers = {
+  blockedLines,
+  guardReasons,
+  reasonsKey,
+  nextConfirmState,
+  cleanRoomLine,
+  cleanRoomLines,
+  canTransmit,
+  buildPublishArgs,
+};
+OrbitalStationPublisher.TransmitModal = TransmitModal;
 
 module.exports = OrbitalStationPublisher;
