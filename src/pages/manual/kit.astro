@@ -1,0 +1,848 @@
+---
+/* PLAY-01 — Orbit Kit: build and share your own Orbital Model.
+   Everything here runs client-side; the server only ever hands the visitor
+   two presets to start from. State lives in the URL fragment (see
+   src/lib/kit-state.ts) and is never read or written on this side. */
+import Base from '../../layouts/Base.astro';
+import SectionHead from '../../components/SectionHead.astro';
+import { SITE, ORBITS, NEAR_CAPACITY } from '../../site.config';
+import { displayedOrbits } from '../../lib/visibility';
+import '../../styles/kit.css';
+
+/* "Start from this station" — the orbits actually shown here (never a
+   hidden one), with their current clocks and the station's constants. */
+const stationPreset = {
+  orbits: displayedOrbits.map((o) => ({ name: o.name, clock: o.clock })),
+  constants: [...SITE.constants],
+  capacity: NEAR_CAPACITY,
+};
+/* Color by ring position, same as the Bridge — never part of the state. */
+const palette = ORBITS.map((o) => o.color);
+---
+
+<Base
+  title="Orbit Kit"
+  description="Build your own Orbital Model — rename up to twelve orbits, drag them NEAR or FAR, and leave with a share link and a printable orrery. Nothing here is ever sent to a server."
+>
+  <div class="page" data-kit>
+    <SectionHead tag="TOOL" />
+    <h1 class="title">Orbit Kit</h1>
+    <p class="sec-sub">
+      Lay out your own Orbital Model. Rename orbits, drag them NEAR or FAR, set the values at your center of
+      mass, and leave with a share link and a printable orrery. Everything runs in this browser tab — nothing
+      you build here is ever sent anywhere. Your whole layout lives in this page's address, after the
+      <code>#</code>.
+    </p>
+
+    <noscript>
+      <p class="empty">
+        THIS TOOL NEEDS JAVASCRIPT. Everything still runs in your browser and nothing is ever sent anywhere —
+        it just can't build the orrery without it.
+      </p>
+    </noscript>
+
+    <div class="kit-toolbar" data-kit-ui hidden>
+      <div class="kit-presets">
+        <span class="kit-label">START FROM</span>
+        <button type="button" class="btn" data-preset="station">THIS STATION'S ORBITS</button>
+        <button type="button" class="btn" data-preset="blank">A BLANK MODEL</button>
+      </div>
+      <p class="kit-notice" data-notice hidden></p>
+    </div>
+
+    <div class="kit-grid" data-kit-ui hidden>
+      <div class="panel reg orrery-panel kit-orrery-panel">
+        <div class="orrery-hint">
+          <span>FIG. K &mdash; YOUR MODEL</span>
+          <span>DRAG A BODY OR TAB TO IT AND USE THE ARROW KEYS &middot; 12 O'CLOCK = NEAR</span>
+        </div>
+        <svg
+          class="orrery kit-orrery"
+          data-kit-svg
+          viewBox="0 0 640 640"
+          role="group"
+          aria-label="Your orrery. Drag a body, or focus it and use the arrow keys, to set how NEAR or FAR it runs."
+        >
+          <text x="320" y="26" text-anchor="middle" class="apsis" data-apsis="26">NEAR</text>
+          <text x="320" y="624" text-anchor="middle" class="apsis" data-apsis="624">FAR</text>
+          <line x1="320" y1="34" x2="320" y2="44" class="tick"></line>
+          <g data-tracks></g>
+          <g>
+            <line x1="310" y1="320" x2="330" y2="320" class="center"></line>
+            <line x1="320" y1="310" x2="320" y2="330" class="center"></line>
+            <circle cx="320" cy="320" r="5.5" class="center"></circle>
+          </g>
+          <g data-bodies></g>
+          <g data-labels></g>
+        </svg>
+        <div class="kit-lamps" data-lamps>
+          <div class="lamp" data-lamp="collision">
+            <i></i><span class="lamp-label">COLLISION RISK</span><span class="lamp-count" data-lamp-count="collision"></span>
+          </div>
+          <div class="lamp" data-lamp="drift">
+            <i></i><span class="lamp-label">DRIFT</span><span class="lamp-count" data-lamp-count="drift"></span>
+          </div>
+        </div>
+      </div>
+
+      <div class="kit-side">
+        <div class="panel reg kit-panel">
+          <h2 class="kit-h">ORBITS <span class="kit-count" data-orbit-count></span></h2>
+          <div class="kit-orbit-list" data-orbit-list></div>
+          <button type="button" class="btn" data-add-orbit>+ ADD ORBIT</button>
+        </div>
+
+        <div class="panel reg kit-panel">
+          <h2 class="kit-h">GOVERNING CONSTANTS <span class="kit-count" data-const-count></span></h2>
+          <div class="kit-const-list" data-const-list></div>
+          <button type="button" class="btn" data-add-const>+ ADD CONSTANT</button>
+        </div>
+
+        <div class="panel reg kit-panel">
+          <h2 class="kit-h">CAPACITY</h2>
+          <label class="kit-capacity">
+            <span>Orbits allowed to run NEAR at once</span>
+            <input type="number" inputmode="numeric" min="1" max="4" step="1" data-capacity />
+          </label>
+        </div>
+
+        <div class="panel reg kit-panel">
+          <h2 class="kit-h">SHARE</h2>
+          <div class="kit-share">
+            <input type="text" readonly data-share-url aria-label="Share link for your layout" />
+            <button type="button" class="btn" data-copy-link>COPY LINK</button>
+          </div>
+          <p class="kit-share-note" data-copy-note aria-live="polite"></p>
+        </div>
+
+        <div class="panel reg kit-panel">
+          <h2 class="kit-h">EXPORT</h2>
+          <div class="kit-export">
+            <button type="button" class="btn" data-export="svg">SVG</button>
+            <button type="button" class="btn" data-export="png">PNG</button>
+            <button type="button" class="btn" data-export="json">ORBITS.JSON</button>
+            <button type="button" class="btn" data-print>PRINT WORKSHEET</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Built by JS, shown only under @media print (src/styles/kit.css). -->
+    <div class="kit-print" data-print-sheet hidden></div>
+  </div>
+
+  <script type="application/json" id="kit-data" set:html={JSON.stringify({ stationPreset, palette })} />
+
+  <script>
+  import type { KitState } from '../../lib/kit-state';
+  import {
+    MAX_ORBITS,
+    MIN_ORBITS,
+    MAX_CONSTANTS,
+    MAX_CONSTANT_LEN,
+    MAX_NAME_LEN,
+    buildState,
+    defaultState,
+    sanitizeState,
+    encodeState,
+    decodeState,
+    normalizeClock,
+    clockProximityPct,
+    lamps,
+  } from '../../lib/kit-state';
+  import { RING_INNER, RING_OUTER, ringRadius, clockToDeg, proximity, placeLabels } from '../../lib/orrery-layout';
+  import { href } from '../../lib/util';
+
+  interface LiveOrbit {
+    id: string;
+    name: string;
+    clock: string;
+  }
+
+  const NS = 'http://www.w3.org/2000/svg';
+  const C = 320;
+
+  const root = document.querySelector<HTMLElement>('[data-kit]');
+  if (root) init(root);
+
+  function init(root: HTMLElement) {
+    const dataEl = document.getElementById('kit-data')!;
+    const { stationPreset, palette } = JSON.parse(dataEl.textContent!) as {
+      stationPreset: { orbits: { name: string; clock: string }[]; constants: string[]; capacity: number };
+      palette: string[];
+    };
+
+    const svg = root.querySelector<SVGSVGElement>('[data-kit-svg]')!;
+    const tracksG = svg.querySelector<SVGGElement>('[data-tracks]')!;
+    const bodiesG = svg.querySelector<SVGGElement>('[data-bodies]')!;
+    const labelsG = svg.querySelector<SVGGElement>('[data-labels]')!;
+    const orbitList = root.querySelector<HTMLElement>('[data-orbit-list]')!;
+    const orbitCountEl = root.querySelector<HTMLElement>('[data-orbit-count]')!;
+    const addOrbitBtn = root.querySelector<HTMLButtonElement>('[data-add-orbit]')!;
+    const constList = root.querySelector<HTMLElement>('[data-const-list]')!;
+    const constCountEl = root.querySelector<HTMLElement>('[data-const-count]')!;
+    const addConstBtn = root.querySelector<HTMLButtonElement>('[data-add-const]')!;
+    const capacityInput = root.querySelector<HTMLInputElement>('[data-capacity]')!;
+    const shareInput = root.querySelector<HTMLInputElement>('[data-share-url]')!;
+    const copyBtn = root.querySelector<HTMLButtonElement>('[data-copy-link]')!;
+    const copyNote = root.querySelector<HTMLElement>('[data-copy-note]')!;
+    const notice = root.querySelector<HTMLElement>('[data-notice]')!;
+    const printSheet = root.querySelector<HTMLElement>('[data-print-sheet]')!;
+    const printBtn = root.querySelector<HTMLButtonElement>('[data-print]')!;
+    const lampEl = (kind: string) => root.querySelector<HTMLElement>(`[data-lamp="${kind}"]`)!;
+    const lampCountEl = (kind: string) => root.querySelector<HTMLElement>(`[data-lamp-count="${kind}"]`)!;
+
+    let counter = 0;
+    let live: LiveOrbit[] = [];
+    let constants: string[] = [];
+    let capacity = 3;
+    let touched = false;
+
+    const bodyEl = (id: string) => svg.querySelector<SVGCircleElement>(`[data-body="${id}"]`)!;
+    const trackEl = (id: string) => svg.querySelector<SVGCircleElement>(`[data-track="${id}"]`)!;
+    const labelEl = (id: string) => svg.querySelector<SVGTextElement>(`[data-label="${id}"]`)!;
+
+    /* The clean, shareable version of the current (possibly mid-edit) model
+       — the same validate-and-clamp rule a forged link goes through. */
+    function derived(): KitState {
+      return (
+        sanitizeState({
+          version: 1,
+          orbits: live.map((o) => ({ name: o.name, clock: o.clock })),
+          constants,
+          capacity,
+        }) ?? defaultState()
+      );
+    }
+
+    function markTouched() {
+      touched = true;
+    }
+
+    function loadState(s: KitState) {
+      live = s.orbits.map((o) => ({ id: `o${counter++}`, name: o.name, clock: o.clock }));
+      constants = [...s.constants];
+      capacity = s.capacity;
+      capacityInput.value = String(capacity);
+      full();
+    }
+
+    /* ---------------- SVG + list construction (structural changes only) ---------------- */
+
+    function rebuildSvg() {
+      tracksG.textContent = '';
+      bodiesG.textContent = '';
+      labelsG.textContent = '';
+      live.forEach((o, i) => {
+        const color = palette[i % palette.length] ?? '#dfa340';
+
+        const track = document.createElementNS(NS, 'circle');
+        track.setAttribute('class', 'track');
+        track.setAttribute('cx', String(C));
+        track.setAttribute('cy', String(C));
+        track.setAttribute('stroke', color);
+        track.dataset.track = o.id;
+        tracksG.appendChild(track);
+
+        const body = document.createElementNS(NS, 'circle');
+        body.setAttribute('class', 'body');
+        body.setAttribute('r', '7');
+        body.setAttribute('fill', color);
+        body.setAttribute('tabindex', '0');
+        body.setAttribute('role', 'slider');
+        body.setAttribute('aria-valuemin', '0');
+        body.setAttribute('aria-valuemax', '100');
+        body.dataset.body = o.id;
+        bodiesG.appendChild(body);
+
+        const label = document.createElementNS(NS, 'text');
+        label.setAttribute('class', 'blabel');
+        label.setAttribute('text-anchor', 'middle');
+        label.dataset.label = o.id;
+        labelsG.appendChild(label);
+      });
+    }
+
+    function rebuildOrbitRows() {
+      orbitList.textContent = '';
+      live.forEach((o, i) => {
+        const row = document.createElement('div');
+        row.className = 'kit-orbit-row';
+        row.dataset.id = o.id;
+
+        const sq = document.createElement('span');
+        sq.className = 'sq';
+        sq.style.background = palette[i % palette.length] ?? '#dfa340';
+        sq.setAttribute('aria-hidden', 'true');
+        row.appendChild(sq);
+
+        const nameInput = document.createElement('input');
+        nameInput.type = 'text';
+        nameInput.className = 'kit-name';
+        nameInput.maxLength = MAX_NAME_LEN;
+        nameInput.value = o.name;
+        nameInput.setAttribute('aria-label', `Orbit ${i + 1} name`);
+        nameInput.addEventListener('input', () => {
+          o.name = nameInput.value.slice(0, MAX_NAME_LEN);
+          markTouched();
+          light();
+        });
+        row.appendChild(nameInput);
+
+        const clockInput = document.createElement('input');
+        clockInput.type = 'text';
+        clockInput.className = 'kit-clock';
+        clockInput.value = o.clock;
+        clockInput.setAttribute('aria-label', `${o.name || `orbit ${i + 1}`} clock position, e.g. 12:00`);
+        clockInput.addEventListener('input', () => {
+          o.clock = clockInput.value;
+          markTouched();
+          light();
+        });
+        clockInput.addEventListener('change', () => {
+          o.clock = normalizeClock(clockInput.value);
+          clockInput.value = o.clock;
+          light();
+        });
+        row.appendChild(clockInput);
+
+        const pct = document.createElement('span');
+        pct.className = 'kit-pct';
+        row.appendChild(pct);
+
+        const removeBtn = document.createElement('button');
+        removeBtn.type = 'button';
+        removeBtn.className = 'kit-remove';
+        removeBtn.textContent = '×';
+        removeBtn.setAttribute('aria-label', `Remove ${o.name || 'this orbit'}`);
+        removeBtn.disabled = live.length <= MIN_ORBITS;
+        removeBtn.addEventListener('click', () => removeOrbit(o.id));
+        row.appendChild(removeBtn);
+
+        orbitList.appendChild(row);
+      });
+      addOrbitBtn.disabled = live.length >= MAX_ORBITS;
+      orbitCountEl.textContent = `${live.length}/${MAX_ORBITS}`;
+    }
+
+    function rebuildConstRows() {
+      constList.textContent = '';
+      constants.forEach((c, i) => {
+        const row = document.createElement('div');
+        row.className = 'kit-const-row';
+
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.className = 'kit-const-input';
+        input.maxLength = MAX_CONSTANT_LEN;
+        input.value = c;
+        input.setAttribute('aria-label', `Constant ${i + 1}`);
+        input.addEventListener('input', () => {
+          constants[i] = input.value.slice(0, MAX_CONSTANT_LEN);
+          markTouched();
+          light();
+        });
+        row.appendChild(input);
+
+        const removeBtn = document.createElement('button');
+        removeBtn.type = 'button';
+        removeBtn.className = 'kit-remove';
+        removeBtn.textContent = '×';
+        removeBtn.setAttribute('aria-label', `Remove constant ${i + 1}`);
+        removeBtn.addEventListener('click', () => removeConstant(i));
+        row.appendChild(removeBtn);
+
+        constList.appendChild(row);
+      });
+      addConstBtn.disabled = constants.length >= MAX_CONSTANTS;
+      constCountEl.textContent = `${constants.length}/${MAX_CONSTANTS}`;
+    }
+
+    function removeOrbit(id: string) {
+      if (live.length <= MIN_ORBITS) return;
+      live = live.filter((o) => o.id !== id);
+      markTouched();
+      full();
+    }
+
+    function removeConstant(i: number) {
+      constants.splice(i, 1);
+      markTouched();
+      full();
+    }
+
+    /* ---------------- positions + derived readouts (every change) ---------------- */
+
+    function updateSvgPositions() {
+      const n = live.length;
+      if (n === 0) return;
+      const at = (o: LiveOrbit, i: number) => {
+        const deg = clockToDeg(normalizeClock(o.clock));
+        const r = ringRadius(i, n, RING_INNER, RING_OUTER);
+        const a = (deg * Math.PI) / 180;
+        return { x: C + Math.cos(a) * r, y: C + Math.sin(a) * r, deg, r };
+      };
+      const positioned = live.map((o, i) => ({ o, ...at(o, i) }));
+
+      for (const p of positioned) {
+        const body = bodyEl(p.o.id);
+        body.setAttribute('cx', p.x.toFixed(2));
+        body.setAttribute('cy', p.y.toFixed(2));
+        const pct = Math.round(proximity(p.deg) * 100);
+        // Reused from the Bridge orrery (Orrery.astro's `aria-label={`${b.name} phase`}`):
+        // `aria-valuetext` only overrides how the *value* is announced, not the
+        // widget's accessible *name* — without this, every slider announces as an
+        // unidentifiable "slider" no matter which orbit it controls.
+        body.setAttribute('aria-label', `${p.o.name || 'unnamed orbit'} phase`);
+        body.setAttribute('aria-valuenow', String(pct));
+        body.setAttribute(
+          'aria-valuetext',
+          `${p.o.name || 'unnamed orbit'} — ${pct}% near, ${normalizeClock(p.o.clock)} o'clock`,
+        );
+        trackEl(p.o.id).setAttribute('r', String(p.r));
+        labelEl(p.o.id).textContent = p.o.name;
+      }
+
+      // Nearest bodies get first pick of label spot, same rule as the Bridge.
+      const ranked = [...positioned].sort((a, b) => proximity(b.deg) - proximity(a.deg));
+      const sample = labelEl(ranked[0].o.id);
+      const h = parseFloat(getComputedStyle(sample).fontSize) || 10.5;
+      const bodyR = parseFloat(getComputedStyle(bodyEl(ranked[0].o.id)).getPropertyValue('r')) || 7;
+      const placed = placeLabels(
+        ranked.map((p) => ({ id: p.o.id, x: p.x, y: p.y, w: labelEl(p.o.id).getComputedTextLength() })),
+        { cx: C, cy: C, size: 640, h, bodyR, gap: 5 },
+      );
+      for (const pl of placed) {
+        labelEl(pl.id).setAttribute('x', pl.x.toFixed(2));
+        labelEl(pl.id).setAttribute('y', (pl.y + h * 0.35).toFixed(2));
+      }
+      svg.querySelectorAll<SVGTextElement>('[data-apsis]').forEach((t) => {
+        const y = Number(t.dataset.apsis);
+        const crowded = placed.some(
+          (p) => Math.abs(p.x - C) < labelEl(p.id).getComputedTextLength() / 2 + 20 && Math.abs(p.y - y) < h + 6,
+        );
+        t.setAttribute('opacity', crowded ? '0' : '1');
+      });
+    }
+
+    // Runs on every change (light(), not just the structural full() rebuild),
+    // so a rename — which only fires light() — keeps the clock input's and
+    // remove button's aria-labels in step with the name, the same way the SVG
+    // body's aria-valuetext already does; they'd otherwise announce the orbit's
+    // name as of its last full() rebuild, not its current one.
+    function updateBadges() {
+      live.forEach((o, i) => {
+        const row = orbitList.querySelector<HTMLElement>(`[data-id="${o.id}"]`);
+        if (!row) return;
+        const pct = row.querySelector<HTMLElement>('.kit-pct');
+        if (pct) pct.textContent = `${clockProximityPct(normalizeClock(o.clock))}%`;
+        const clockInput = row.querySelector<HTMLInputElement>('.kit-clock');
+        if (clockInput) clockInput.setAttribute('aria-label', `${o.name || `orbit ${i + 1}`} clock position, e.g. 12:00`);
+        const removeBtn = row.querySelector<HTMLButtonElement>('.kit-remove');
+        if (removeBtn) removeBtn.setAttribute('aria-label', `Remove ${o.name || 'this orbit'}`);
+      });
+    }
+
+    function updateLamps() {
+      const l = lamps(derived());
+      lampEl('collision').classList.toggle('on', l.collision);
+      lampEl('drift').classList.toggle('on', l.drift);
+      lampCountEl('collision').textContent = `${l.near} NEAR · CAPACITY ${l.capacity}`;
+      lampCountEl('drift').textContent = `${l.constantsSet}/${MAX_CONSTANTS} SET`;
+    }
+
+    function updateShare() {
+      const fragment = encodeState(derived());
+      history.replaceState(null, '', `${location.pathname}${location.search}#${fragment}`);
+      shareInput.value = location.href;
+    }
+
+    function light() {
+      updateSvgPositions();
+      updateBadges();
+      updateLamps();
+      updateShare();
+    }
+
+    function full() {
+      rebuildSvg();
+      rebuildOrbitRows();
+      rebuildConstRows();
+      light();
+    }
+
+    /* ---------------- presets + initial load ---------------- */
+
+    function showNotice(msg: string) {
+      notice.textContent = msg;
+      notice.hidden = false;
+    }
+
+    root.querySelectorAll<HTMLButtonElement>('[data-preset]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        if (touched && !confirm("Start over with a fresh layout? Copy your link first if you want to keep this one.")) {
+          return;
+        }
+        const preset =
+          btn.dataset.preset === 'station'
+            ? buildState(stationPreset.orbits, stationPreset.constants, stationPreset.capacity)
+            : defaultState();
+        notice.hidden = true;
+        touched = false;
+        loadState(preset);
+      });
+    });
+
+    addOrbitBtn.addEventListener('click', () => {
+      if (live.length >= MAX_ORBITS) return;
+      const clock = `${(live.length % 12) + 1}:00`;
+      live.push({ id: `o${counter++}`, name: `ORBIT ${live.length + 1}`, clock });
+      markTouched();
+      full();
+      orbitList.querySelector<HTMLInputElement>('.kit-orbit-row:last-child .kit-name')?.focus();
+    });
+
+    addConstBtn.addEventListener('click', () => {
+      if (constants.length >= MAX_CONSTANTS) return;
+      constants.push('');
+      markTouched();
+      full();
+      constList.querySelector<HTMLInputElement>('.kit-const-row:last-child .kit-const-input')?.focus();
+    });
+
+    capacityInput.addEventListener('input', () => {
+      const n = Number(capacityInput.value);
+      if (Number.isFinite(n)) capacity = n;
+      markTouched();
+      light();
+    });
+    capacityInput.addEventListener('change', () => {
+      capacity = derived().capacity;
+      capacityInput.value = String(capacity);
+    });
+
+    /* ---------------- share + exports ---------------- */
+
+    let copyNoteTimer: ReturnType<typeof setTimeout> | undefined;
+    function setCopyNote(msg: string) {
+      copyNote.textContent = msg;
+      clearTimeout(copyNoteTimer);
+      copyNoteTimer = setTimeout(() => {
+        copyNote.textContent = '';
+      }, 4000);
+    }
+    copyBtn.addEventListener('click', async () => {
+      const text = shareInput.value;
+      try {
+        await navigator.clipboard.writeText(text);
+        setCopyNote('LINK COPIED');
+      } catch {
+        shareInput.focus();
+        shareInput.select();
+        setCopyNote('COULD NOT COPY AUTOMATICALLY — THE LINK IS SELECTED, PRESS CTRL/CMD+C');
+      }
+    });
+
+    function themeVar(name: string, fallback: string): string {
+      const v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+      return v || fallback;
+    }
+
+    /** A self-contained clone of the live SVG: every class-based style is
+        replaced with an explicit attribute, so the file carries no external
+        references and looks right opened on its own. */
+    function buildExportSvg(): SVGSVGElement {
+      const bg = themeVar('--bg', '#23262d');
+      const panel = themeVar('--panel', '#2c3039');
+      const fg = themeVar('--fg', '#e9e5da');
+      const faint = themeVar('--faint', '#9a988f');
+
+      const clone = svg.cloneNode(true) as SVGSVGElement;
+      clone.setAttribute('xmlns', NS);
+      clone.setAttribute('width', '640');
+      clone.setAttribute('height', '640');
+
+      const bgRect = document.createElementNS(NS, 'rect');
+      bgRect.setAttribute('x', '0');
+      bgRect.setAttribute('y', '0');
+      bgRect.setAttribute('width', '640');
+      bgRect.setAttribute('height', '640');
+      bgRect.setAttribute('fill', bg);
+      clone.insertBefore(bgRect, clone.firstChild);
+
+      clone.querySelectorAll('.tick, .center').forEach((el) => {
+        el.removeAttribute('class');
+        el.setAttribute('stroke', fg);
+        el.setAttribute('fill', 'none');
+      });
+      clone.querySelectorAll('.track').forEach((el) => {
+        el.setAttribute('fill', 'none');
+        el.removeAttribute('class');
+      });
+      clone.querySelectorAll('.body').forEach((el) => {
+        el.setAttribute('stroke', panel);
+        el.setAttribute('stroke-width', '2');
+        el.removeAttribute('class');
+      });
+      clone.querySelectorAll('.blabel').forEach((el) => {
+        el.setAttribute('fill', fg);
+        el.setAttribute('font-family', 'monospace');
+        el.setAttribute('font-size', '10.5');
+        el.removeAttribute('class');
+      });
+      clone.querySelectorAll('.apsis').forEach((el) => {
+        el.setAttribute('fill', faint);
+        el.setAttribute('font-family', 'monospace');
+        el.setAttribute('font-size', '9');
+        el.removeAttribute('class');
+      });
+      clone.removeAttribute('class');
+      return clone;
+    }
+
+    function svgMarkup(svgNode: SVGSVGElement): string {
+      return `<?xml version="1.0" encoding="UTF-8"?>\n${new XMLSerializer().serializeToString(svgNode)}`;
+    }
+
+    function download(filename: string, blob: Blob) {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 4000);
+    }
+
+    function exportSvgFile() {
+      download('orbit-kit.svg', new Blob([svgMarkup(buildExportSvg())], { type: 'image/svg+xml' }));
+    }
+
+    function exportPngFile() {
+      const markup = svgMarkup(buildExportSvg());
+      const svgBlob = new Blob([markup], { type: 'image/svg+xml;charset=utf-8' });
+      const url = URL.createObjectURL(svgBlob);
+      const img = new Image();
+      img.onload = () => {
+        const scale = 2;
+        const canvas = document.createElement('canvas');
+        canvas.width = 640 * scale;
+        canvas.height = 640 * scale;
+        const ctx = canvas.getContext('2d');
+        URL.revokeObjectURL(url);
+        if (!ctx) return;
+        ctx.scale(scale, scale);
+        ctx.drawImage(img, 0, 0, 640, 640);
+        canvas.toBlob((blob) => {
+          if (blob) download('orbit-kit.png', blob);
+        }, 'image/png');
+      };
+      img.src = url;
+    }
+
+    function exportJsonFile() {
+      const s = derived();
+      const payload = {
+        version: 1,
+        generator: 'Orbital Station — Orbit Kit',
+        orbits: s.orbits.map((o) => ({ name: o.name, clock: o.clock, proximity: clockProximityPct(o.clock) })),
+        constants: s.constants,
+        capacity: s.capacity,
+      };
+      download('orbits.json', new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' }));
+    }
+
+    root.querySelectorAll<HTMLButtonElement>('[data-export]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        if (btn.dataset.export === 'svg') exportSvgFile();
+        else if (btn.dataset.export === 'png') exportPngFile();
+        else if (btn.dataset.export === 'json') exportJsonFile();
+      });
+    });
+
+    /* ---------------- print worksheet ---------------- */
+
+    function renderPrintSheet() {
+      printSheet.textContent = '';
+      const clean = derived();
+      const l = lamps(clean);
+
+      const h2 = document.createElement('h2');
+      h2.className = 'title';
+      h2.style.fontSize = '22px';
+      h2.textContent = 'ORBIT KIT — PRINTABLE WORKSHEET';
+      printSheet.appendChild(h2);
+
+      printSheet.appendChild(svg.cloneNode(true) as SVGSVGElement);
+
+      const lampP = document.createElement('p');
+      lampP.textContent =
+        `COLLISION RISK: ${l.collision ? 'LIT' : 'clear'} (${l.near} NEAR of capacity ${l.capacity})  ·  ` +
+        `DRIFT: ${l.drift ? 'LIT' : 'clear'} (${l.constantsSet}/${MAX_CONSTANTS} constants set)`;
+      printSheet.appendChild(lampP);
+
+      const table = document.createElement('table');
+      table.className = 'kit-print-table';
+      const headRow = document.createElement('tr');
+      ['ORBIT', 'CLOCK', 'NEAR %', 'NOTES'].forEach((label) => {
+        const th = document.createElement('th');
+        th.textContent = label;
+        headRow.appendChild(th);
+      });
+      table.appendChild(headRow);
+      clean.orbits.forEach((o) => {
+        const tr = document.createElement('tr');
+        const tdName = document.createElement('td');
+        tdName.textContent = o.name;
+        const tdClock = document.createElement('td');
+        tdClock.textContent = o.clock;
+        const tdPct = document.createElement('td');
+        tdPct.textContent = `${clockProximityPct(o.clock)}%`;
+        const tdNotes = document.createElement('td');
+        tdNotes.className = 'kit-notes-cell';
+        tr.append(tdName, tdClock, tdPct, tdNotes);
+        table.appendChild(tr);
+      });
+      printSheet.appendChild(table);
+
+      const constP = document.createElement('p');
+      constP.textContent = `GOVERNING CONSTANTS: ${clean.constants.join(', ') || '(none set)'}`;
+      printSheet.appendChild(constP);
+
+      for (let i = 0; i < 6; i++) {
+        const line = document.createElement('div');
+        line.className = 'kit-notesline';
+        printSheet.appendChild(line);
+      }
+    }
+
+    printBtn.addEventListener('click', () => {
+      renderPrintSheet();
+      window.print();
+    });
+    window.addEventListener('beforeprint', renderPrintSheet);
+
+    /* ---------------- drag + keyboard (mirrors the Bridge orrery) ---------------- */
+
+    const toClock = (deg: number): string => {
+      let h = (((deg + 90) / 30) % 12 + 12) % 12;
+      let hh = Math.floor(h);
+      let mm = Math.round((h - hh) * 60);
+      if (mm === 60) {
+        hh += 1;
+        mm = 0;
+      }
+      return `${hh % 12 || 12}:${String(mm).padStart(2, '0')}`;
+    };
+
+    const toSvgPoint = (ev: PointerEvent) => {
+      const r = svg.getBoundingClientRect();
+      return { x: ((ev.clientX - r.left) * 640) / r.width, y: ((ev.clientY - r.top) * 640) / r.height };
+    };
+
+    let dragging: string | null = null;
+    svg.addEventListener('pointerdown', (ev) => {
+      const p = toSvgPoint(ev);
+      let best: string | null = null;
+      let bestD = 30;
+      live.forEach((o, i) => {
+        const deg = clockToDeg(normalizeClock(o.clock));
+        const r = ringRadius(i, live.length, RING_INNER, RING_OUTER);
+        const a = (deg * Math.PI) / 180;
+        const d = Math.hypot(p.x - (C + Math.cos(a) * r), p.y - (C + Math.sin(a) * r));
+        if (d < bestD) {
+          bestD = d;
+          best = o.id;
+        }
+      });
+      if (best) {
+        ev.preventDefault();
+        dragging = best;
+        svg.classList.add('dragging');
+        svg.setPointerCapture(ev.pointerId);
+      }
+    });
+    svg.addEventListener('pointermove', (ev) => {
+      if (!dragging) return;
+      const p = toSvgPoint(ev);
+      const deg = (Math.atan2(p.y - C, p.x - C) * 180) / Math.PI;
+      const o = live.find((x) => x.id === dragging);
+      if (!o) return;
+      o.clock = toClock(deg);
+      markTouched();
+      light();
+    });
+    const endDrag = () => {
+      if (!dragging) return;
+      dragging = null;
+      svg.classList.remove('dragging');
+    };
+    svg.addEventListener('pointerup', endDrag);
+    svg.addEventListener('pointercancel', endDrag);
+
+    svg.addEventListener('keydown', (ev) => {
+      const target = ev.target as Element;
+      const id = target.getAttribute('data-body');
+      if (!id) return;
+      const o = live.find((x) => x.id === id);
+      if (!o) return;
+      const step = ev.shiftKey ? 15 : 5;
+      const deg = clockToDeg(normalizeClock(o.clock));
+      if (ev.key === 'ArrowRight' || ev.key === 'ArrowDown') o.clock = toClock(deg + step);
+      else if (ev.key === 'ArrowLeft' || ev.key === 'ArrowUp') o.clock = toClock(deg - step);
+      else return;
+      ev.preventDefault();
+      markTouched();
+      light();
+    });
+
+    /* ---------------- boot ---------------- */
+
+    // Unhide the toolbar/grid *before* building the initial state: `loadState`
+    // → `full()` → `light()` measures label widths with SVG `getComputedTextLength()`,
+    // which returns 0 while an ancestor is still `[hidden]` (display:none). Doing
+    // this first — still synchronously, before the browser gets a chance to paint —
+    // means every visitor's very first render (and every share-link reload) gets
+    // real label widths instead of overlapping, zero-width placements.
+    root.querySelectorAll<HTMLElement>('[data-kit-ui]').forEach((el) => {
+      el.hidden = false;
+    });
+    const { state, ok, empty } = decodeState(location.hash);
+    if (empty) {
+      loadState(buildState(stationPreset.orbits, stationPreset.constants, stationPreset.capacity));
+    } else {
+      loadState(state);
+      if (!ok) showNotice("That share link couldn't be read, so this is a default layout instead.");
+    }
+
+    /* ---------------- offline (PLAY-01): this page only ---------------- */
+
+    if ('serviceWorker' in navigator) {
+      const swUrl = href('/manual/kit/sw.js');
+      const scope = href('/manual/kit/');
+      navigator.serviceWorker
+        .register(swUrl, { scope })
+        .then(() => {
+          const postAssets = () => {
+            const controller = navigator.serviceWorker.controller;
+            if (!controller) return;
+            const urls = performance
+              .getEntriesByType('resource')
+              .map((r) => r.name)
+              .filter((u) => u.startsWith(location.origin));
+            urls.push(location.href.split('#')[0]);
+            controller.postMessage({ type: 'cache-urls', urls });
+          };
+          if (navigator.serviceWorker.controller) postAssets();
+          navigator.serviceWorker.addEventListener('controllerchange', postAssets);
+          window.addEventListener('load', () => setTimeout(postAssets, 500));
+        })
+        .catch(() => {
+          /* Offline support is a bonus, not a requirement — a failed registration
+             (e.g. a browser without SW support) never blocks the kit itself. */
+        });
+    }
+  }
+</script>
+</Base>
