@@ -9,6 +9,8 @@
    plugin at this repo and at the Node.js running this script, and turns
    it on (when Obsidian is closed — otherwise it tells you the one click).
    Safe to run again after pulling changes.
+   Run it from Windows (PowerShell or cmd), never WSL: Obsidian on Windows
+   can't use a Linux Node.js or /mnt/c/… paths, so it refuses there.
 
    Whether Obsidian is running is normally detected with tasklist/pgrep.
    Set ORBITAL_OBSIDIAN_RUNNING=1 or =0 to override that detection (used
@@ -56,6 +58,28 @@ function obsidianRunning() {
   } catch {
     return false;
   }
+}
+
+/* ---------- not from WSL ----------
+   Obsidian on Windows can't run WSL's Linux node or open /mnt/c/… paths, so an
+   install from WSL would record settings the plugin can never use. */
+function insideWsl() {
+  if (process.platform !== 'linux') return false;
+  if (process.env.WSL_DISTRO_NAME || process.env.WSL_INTEROP || /microsoft/i.test(os.release())) return true;
+  try {
+    return /microsoft/i.test(fs.readFileSync('/proc/version', 'utf8'));
+  } catch {
+    return false;
+  }
+}
+if (insideWsl()) {
+  const winRepo = repo.replace(/^\/mnt\/([a-z])\//i, (_, d) => `${d.toUpperCase()}:\\`).replaceAll('/', '\\');
+  fail(
+    'This is WSL (Linux), but Obsidian runs on Windows and can\'t use WSL\'s Node.js or /mnt/c/… paths.\n' +
+      '    Run it from Windows PowerShell (or Command Prompt) instead:\n\n' +
+      `      cd "${winRepo}"\n` +
+      '      npm run obsidian:install',
+  );
 }
 
 /* ---------- which vault ---------- */

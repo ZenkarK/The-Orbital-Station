@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import jsYaml from 'js-yaml';
 import sharp from 'sharp';
@@ -415,4 +415,19 @@ test('install.mjs leaves community-plugins.json untouched and tells you what to 
   const list = JSON.parse(fs.readFileSync(path.join(v, '.obsidian', 'community-plugins.json'), 'utf8'));
   assert.deepEqual(list, ['dataview']); // not enabled while Obsidian is running
   assert.match(out, /Settings.*Community plugins/s);
+});
+
+// Obsidian on Windows can't run WSL's Linux node or read /mnt/c/… paths, so an install from WSL
+// would write a plugin config that silently doesn't work. Only Linux can pretend to be WSL.
+test('install.mjs refuses to run inside WSL and says to use PowerShell', { skip: process.platform !== 'linux' && 'WSL is Linux-only' }, () => {
+  const v = path.join(tmp, 'install-vault-wsl');
+  fs.mkdirSync(path.join(v, '.obsidian'), { recursive: true });
+  const res = spawnSync(process.execPath, [path.join(ROOT, 'scripts', 'obsidian', 'install.mjs'), v], {
+    encoding: 'utf8',
+    env: { ...process.env, WSL_DISTRO_NAME: 'Ubuntu', ORBITAL_OBSIDIAN_RUNNING: '0' },
+  });
+  assert.notEqual(res.status, 0);
+  assert.match(res.stderr, /WSL/);
+  assert.match(res.stderr, /PowerShell/);
+  assert.equal(fs.existsSync(path.join(v, '.obsidian', 'plugins')), false); // nothing written
 });

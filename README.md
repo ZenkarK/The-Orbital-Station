@@ -49,7 +49,7 @@ Prefer Netlify, Cloudflare Pages or Vercel? See [§7](#7-other-hosts).
 npm run obsidian:install
 ```
 
-This copies the **Orbital Station Publisher** plugin into your vault (`C:\Zenkar's Vault`, or pass a path: `npm run obsidian:install -- "D:\Other Vault"`). It points the plugin at this folder and at Node.js, and turns it on. Your other plugins and settings are left as they are. Then:
+Run it from Windows PowerShell or Command Prompt, not WSL — Obsidian runs on Windows and can't use WSL's Node.js or `/mnt/c/…` paths, so the script refuses to run there. This copies the **Orbital Station Publisher** plugin into your vault (`C:\Zenkar's Vault`, or pass a path: `npm run obsidian:install -- "D:\Other Vault"`). It points the plugin at this folder and at Node.js, and turns it on. Your other plugins and settings are left as they are. Then:
 
 - If Obsidian was open, enable it once under **Settings → Community plugins** → *Orbital Station Publisher*.
 - If Obsidian says community plugins are in **restricted mode**, turn restricted mode off on the same page.
