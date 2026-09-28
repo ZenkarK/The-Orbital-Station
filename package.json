@@ -20,7 +20,8 @@
     "astro": "astro",
     "scan:secrets": "node scripts/scan-secrets.mjs",
     "scan:media": "node scripts/scan-media.mjs",
-    "queue": "node scripts/obsidian/queue.mjs"
+    "queue": "node scripts/obsidian/queue.mjs",
+    "fonts": "node scripts/subset-fonts.mjs"
   },
   "dependencies": {
     "@astrojs/markdown-satteri": "^0.4.2",
@@ -42,6 +43,7 @@
     "@astrojs/check": "^0.9.10",
     "obsidian": "^1.13.1",
     "puppeteer-core": "^25.12.0",
+    "subset-font": "^2.9.0",
     "typescript": "^6.0.3"
   }
 }
