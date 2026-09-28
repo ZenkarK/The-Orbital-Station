@@ -68,6 +68,13 @@ const jsonLd = {
   keywords: tags.join(', '),
   articleSection: o.name,
 };
+
+/* READ-02: link previews always get the generated card, not a post's own `cover` —
+   consistency across every transmission (same layout, same station chrome) matters
+   more here than a one-off hero image most crawlers crop badly anyway. `cover` still
+   runs as the in-page hero figure below. */
+const ogImage = href(`/og/transmissions/${post.id}.png`);
+const ogImageAlt = `${title} — a transmission on the ${o.name} orbit, Orbital Station.`;
 ---
 
 <Base
@@ -77,8 +84,8 @@ const jsonLd = {
   published={date}
   modified={updated}
   tags={tags}
-  image={cover?.src}
-  imageAlt={coverAlt}
+  image={ogImage}
+  imageAlt={ogImageAlt}
   noindex={draft}
 >
   <script slot="head" type="application/ld+json" set:html={JSON.stringify(jsonLd)} />

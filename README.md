@@ -272,6 +272,24 @@ Astro resizes and optimizes the images at build time. Always write alt text.
 
 Name a file `.mdx` instead of `.md` to use components inside a post. Plain `.md` is recommended, because those posts also go out in full over RSS.
 
+### Social cards
+
+Every transmission, mission and orbit page gets its own link-preview image (1200×630,
+`/og/transmissions/<slug>.png`, `/og/log/<slug>.png`, `/og/orbits/<id>.png`), generated
+automatically at build time — a post's own `cover` still only shows in the article
+itself, not in link previews, so every share looks consistent. A page with no card of
+its own (search, the home page, a hidden orbit, …) falls back to `public/og.png`.
+
+To change how a card looks, edit `src/lib/og-card.ts` (the layout: dark ground, the
+orbit's colour as the one strong accent, the mono meta line, the Archivo title, the
+station's name and author at the foot — built with [Satori](https://github.com/vercel/satori)
+and rasterized with `sharp`). How far a long title steps its size down before it's
+ellipsized lives separately in `src/lib/og-title-fit.ts`, unit-tested in
+`tests/site/og-title-fit.test.mjs`. Regenerate `public/og.png` by hand if you redesign
+it — keep it at 1200×630 and well under 100 KB (`sharp(...).png({ palette: true,
+compressionLevel: 9, effort: 10 })` got the current one from 157 KB down to ~70 KB with
+no visible loss).
+
 ---
 
 ## 5. The rest of the station
@@ -301,7 +319,7 @@ Open `src/site.config.ts`:
 1. **Channels.** Fill in `email`, `github`, `linkedin` and so on. Anything left empty is hidden, so no placeholder links ever go live. Use a dedicated public alias for `email`, not your personal inbox. Profile links must start with `https://`, and a malformed value stops the build rather than shipping a broken link. Profiles get `rel="me"`, so Mastodon can verify them.
 2. **Name, description, latitude.** Check the `SITE` block.
 3. **Analytics (optional).** `ANALYTICS.goatcounter` switches on cookie-free visit counts: create a free site at [goatcounter.com](https://www.goatcounter.com) and paste its count address (`https://<code>.goatcounter.com/count`). Blank means no script and no request at all. The site's own ~1 KB script sends only the page path, title, screen size and an external referrer; visitors with Do Not Track or Global Privacy Control on are never counted, and nothing is counted from `localhost`. Titles of pages in an orbit start with its name (`ASTRO · …`): turn on *match title* in the dashboard filter and type the orbit's name to see one orbit. Links with a `data-event` attribute (the CV download) count their clicks as events. The footer and the Observer page say which mode is on.
-4. **Social card.** `public/og.png` is the default link-preview image (1200×630). Posts with a cover use that instead.
+4. **Social card.** `public/og.png` is the fallback link-preview image (1200×630) for pages without a generated card of their own; transmissions, missions and orbits get theirs automatically (see [Social cards](#social-cards)).
 
 ---
 
@@ -315,7 +333,7 @@ Netlify, Cloudflare Pages and Vercel detect Astro automatically. Import the GitH
 
 - **Pages:** Bridge (home + interactive orrery), Transmissions (filterable by orbit and kind, with year archive, tags and prev/next), Flight Log with per-mission pages, Library (shelf filters), Trajectories, one page per orbit, Manual, Observer, Search, and a 404.
 - **Reading:** light and dark themes, self-hosted fonts, KaTeX math, callouts, reading times, table of contents, copy buttons on code, print styles.
-- **Discovery:** RSS at `/rss.xml` (full text), `sitemap-index.xml`, `robots.txt`, canonical URLs, Open Graph/Twitter cards, and `BlogPosting` structured data.
+- **Discovery:** RSS at `/rss.xml` (full text), `sitemap-index.xml`, `robots.txt`, canonical URLs, a generated Open Graph/Twitter share image per transmission, mission and orbit (see [Social cards](#social-cards) above), and `BlogPosting` structured data.
 - **Search:** press <kbd>/</kbd> or <kbd>Ctrl</kbd>+<kbd>K</kbd> anywhere. The index is built at deploy time (`/search.json`) with no third-party service.
 - **Accessibility:** skip link, keyboard-operable orrery, visible focus, reduced-motion support, and WCAG AA text contrast in both themes.
 

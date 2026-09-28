@@ -52,9 +52,13 @@ const nothing = !posts.length && !projects.length && !library.length && !traject
 /* phase-only: the body and its phase still show, but nothing filed there is
    counted or listed — so instead of the counts row and empty-state copy, say so. */
 const phaseOnly = visibilityOf(o) === 'phase-only';
+// READ-02: the card draws only on `o.name`/`o.color`/`o.desc` and phase — the same
+// config-level things this page shows a phase-only orbit, never a count or title.
+const ogImage = href(`/og/orbits/${o.id}.png`);
+const ogImageAlt = `${name} orbit — Orbital Station.`;
 ---
 
-<Base title={`${name} orbit`} description={o.desc}>
+<Base title={`${name} orbit`} description={o.desc} image={ogImage} imageAlt={ogImageAlt}>
   <div class="page">
     <a class="backlink" href={href('/orbits/')}>← ALL ORBITS</a>
     <div class="orbit-hero">
