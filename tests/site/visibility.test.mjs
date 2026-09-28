@@ -2,9 +2,8 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
-import os from 'node:os';
 import crypto from 'node:crypto';
-import { execFileSync } from 'node:child_process';
+import { buildSiteCopy } from '../helpers/site-build.mjs';
 
 /* MODEL-07 leakage test. Builds a throwaway copy of the site with one public
    orbit switched to `hidden`, plants canary content in `phase-only` (BODY) and
@@ -126,31 +125,6 @@ function hideCraftOrbit(tmp) {
   fs.writeFileSync(configPath, text.replace(needle, "folders: ['Cooking', 'Photography'],\n    visibility: 'hidden',"));
 }
 
-/** Gives the copy its own Astro/Vite caches so it never touches node_modules/.astro or .vite,
-    which the symlinked node_modules shares with every other build in this working tree. */
-function isolateCaches(tmp) {
-  const configPath = path.join(tmp, 'astro.config.mjs');
-  const text = fs.readFileSync(configPath, 'utf8');
-  const astroCache = JSON.stringify(path.join(tmp, '.astro-cache').replace(/\\/g, '/'));
-  const viteCache = JSON.stringify(path.join(tmp, '.vite-cache').replace(/\\/g, '/'));
-  let out = text.replace('export default defineConfig({\n  site: SITE_URL,', `export default defineConfig({\n  cacheDir: ${astroCache},\n  site: SITE_URL,`);
-  assert.notEqual(out, text, 'astro.config.mjs top level has moved — update the test fixture');
-  const before = out;
-  out = out.replace('vite: {\n    define: {', `vite: {\n    cacheDir: ${viteCache},\n    define: {`);
-  assert.notEqual(out, before, 'astro.config.mjs vite block has moved — update the test fixture');
-  fs.writeFileSync(configPath, out);
-}
-
-function copySite(tmp) {
-  fs.mkdirSync(tmp, { recursive: true });
-  fs.cpSync(path.join(ROOT, 'src'), path.join(tmp, 'src'), { recursive: true });
-  fs.cpSync(path.join(ROOT, 'public'), path.join(tmp, 'public'), { recursive: true });
-  fs.cpSync(path.join(ROOT, 'astro.config.mjs'), path.join(tmp, 'astro.config.mjs'));
-  fs.cpSync(path.join(ROOT, 'tsconfig.json'), path.join(tmp, 'tsconfig.json'));
-  fs.cpSync(path.join(ROOT, 'package.json'), path.join(tmp, 'package.json'));
-  fs.symlinkSync(path.join(ROOT, 'node_modules'), path.join(tmp, 'node_modules'), process.platform === 'win32' ? 'junction' : undefined);
-}
-
 function scanDist(distDir) {
   const hits = [];
   const walk = (dir) => {
@@ -160,6 +134,9 @@ function scanDist(distDir) {
         walk(p);
         continue;
       }
+      // A token in a file name is a leak too (a social card or feed named after the page, say).
+      const rel = path.relative(distDir, p);
+      for (const token of FORBIDDEN) if (rel.includes(token)) hits.push({ file: rel, token });
       if (!DIST_EXT.test(entry.name)) continue;
       const text = fs.readFileSync(p, 'utf8');
       for (const token of FORBIDDEN) if (text.includes(token)) hits.push({ file: path.relative(distDir, p), token });
@@ -170,21 +147,15 @@ function scanDist(distDir) {
 }
 
 test('orbit visibility: hidden and phase-only content never reaches dist', { timeout: 300000 }, () => {
-  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'orbital-visibility-'));
+  const site = buildSiteCopy({
+    prefix: 'orbital-visibility-',
+    edit: (tmp) => {
+      hideCraftOrbit(tmp);
+      plantCanaries(tmp);
+    },
+  });
   try {
-    copySite(tmp);
-    hideCraftOrbit(tmp);
-    isolateCaches(tmp);
-    plantCanaries(tmp);
-
-    execFileSync(process.execPath, [path.join(tmp, 'node_modules/astro/bin/astro.mjs'), 'build'], {
-      cwd: tmp,
-      stdio: 'pipe',
-      timeout: 280000,
-      env: { ...process.env, SITE_URL: 'https://example.test' },
-    });
-
-    const distDir = path.join(tmp, 'dist');
+    const distDir = site.dist;
     const hits = scanDist(distDir);
     assert.deepEqual(hits, [], `leaked canary tokens found in dist: ${JSON.stringify(hits)}`);
 
@@ -217,6 +188,6 @@ test('orbit visibility: hidden and phase-only content never reaches dist', { tim
     // And the draft mission itself must have no page at all (it's unpublished, not just unlisted).
     assert.ok(!fs.existsSync(path.join(distDir, 'log', T.draftProject, 'index.html')), 'the draft mission should not be built as a page');
   } finally {
-    fs.rmSync(tmp, { recursive: true, force: true });
+    site.cleanup();
   }
 });
