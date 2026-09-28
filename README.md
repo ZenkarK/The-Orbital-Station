@@ -37,6 +37,15 @@ Your address is worked out automatically:
 | anything else, e.g. `orbital-station` | `https://<you>.github.io/orbital-station/` |
 | custom domain (Settings → Pages → Custom domain) | your domain — also enter it in the Obsidian plugin's *Site address* setting |
 
+**Buying a custom domain later?** Set it under **Settings → Pages → Custom domain** (GitHub
+handles the DNS check and HTTPS certificate), then commit a `public/CNAME` file in this repo
+containing just the domain, e.g. `zenkar.dev`. `deploy.yml` already switches its origin and
+base path to it automatically (`configure-pages`'s output), and `public/CNAME` is the same
+fallback the build (`astro.config.mjs`) and the publisher (`siteUrlFor`) use everywhere else —
+GitHub Pages, another host, or `npm run build` on your machine — so canonical URLs, RSS, the
+JSON Feed and the sitemap all move to the new domain with no other change. Update the
+Obsidian plugin's *Site address* setting to match.
+
 Prefer Netlify, Cloudflare Pages or Vercel? See [§7](#7-other-hosts).
 
 ---
@@ -325,7 +334,7 @@ Open `src/site.config.ts`:
 
 ## 7. Other hosts
 
-Netlify, Cloudflare Pages and Vercel detect Astro automatically. Import the GitHub repository in their dashboard. If asked: build command `npm run build`, output directory `dist`, Node version from `.nvmrc` (24). The site URL is picked up from the host. With a custom domain, set the environment variable `SITE_URL=https://yourdomain.com`, and the same address in the Obsidian plugin's *Site address* setting.
+Netlify, Cloudflare Pages and Vercel detect Astro automatically. Import the GitHub repository in their dashboard. If asked: build command `npm run build`, output directory `dist`, Node version from `.nvmrc` (24). The site URL is picked up from the host. With a custom domain, set the environment variable `SITE_URL=https://yourdomain.com` (or commit `public/CNAME`, same as the GitHub Pages path above), and the same address in the Obsidian plugin's *Site address* setting.
 
 ---
 
@@ -333,7 +342,7 @@ Netlify, Cloudflare Pages and Vercel detect Astro automatically. Import the GitH
 
 - **Pages:** Bridge (home + interactive orrery), Transmissions (filterable by orbit and kind, with year archive, tags and prev/next), Flight Log with per-mission pages, Library (shelf filters), Trajectories, one page per orbit, Manual, Observer, Search, and a 404.
 - **Reading:** light and dark themes, self-hosted fonts, KaTeX math, callouts, reading times, table of contents, copy buttons on code, print styles.
-- **Discovery:** RSS at `/rss.xml` (full text), `sitemap-index.xml`, `robots.txt`, canonical URLs, a generated Open Graph/Twitter share image per transmission, mission and orbit (see [Social cards](#social-cards) above), and `BlogPosting` structured data.
+- **Discovery:** RSS at `/rss.xml` (full text) plus one per orbit (`/orbits/<id>/rss.xml`, public orbits only) and a JSON Feed at `/feed.json`, `sitemap-index.xml` (with `lastmod`), `robots.txt`, canonical URLs, a generated Open Graph/Twitter share image per transmission, mission and orbit (see [Social cards](#social-cards) above), and `Person`/`BlogPosting`/`BreadcrumbList` structured data. A moved or removed page redirects from its old address (`src/redirects.json`, kept up to date by the publisher).
 - **Search:** press <kbd>/</kbd> or <kbd>Ctrl</kbd>+<kbd>K</kbd> anywhere. The index is built at deploy time (`/search.json`) with no third-party service.
 - **Accessibility:** skip link, keyboard-operable orrery, visible focus, reduced-motion support, and WCAG AA text contrast in both themes.
 
@@ -348,12 +357,16 @@ src/
 │   └── trajectories.yaml
 ├── pages/                ← one file per route
 ├── components/           ← Orrery, Header, Footer, SearchDialog, …
-├── layouts/Base.astro    ← <head>, SEO, header/footer shell
+├── layouts/Base.astro    ← <head>, SEO, header/footer shell (feeds, JSON-LD, OG/Twitter)
 ├── lib/markdown-plugins.mjs ← math, callouts, base-path links
+├── lib/feed.ts           ← shared RSS/JSON Feed item builder
+├── lib/structured-data.ts ← shared JSON-LD builders (Person, BlogPosting, BreadcrumbList)
+├── lib/sitemap-lastmod.mjs ← sitemap `lastmod` index, read by astro.config.mjs
+├── redirects.json         ← old path → new path, kept up to date by the publisher
 ├── styles/global.css     ← the whole design system (tokens at the top)
 └── scripts/search.ts
 obsidian-plugin/          ← the Obsidian "Transmit" button (installed by npm run obsidian:install)
-scripts/obsidian/         ← the publisher: convert.mjs, publish.mjs, install.mjs
+scripts/obsidian/         ← the publisher: convert.mjs, publish.mjs, install.mjs, redirects.mjs
 scripts/new.mjs           ← `npm run new` scaffolder
 tests/                    ← publisher + Markdown tests (npm test)
 prototype/                ← the original single-file rev 4, kept for reference (not built)

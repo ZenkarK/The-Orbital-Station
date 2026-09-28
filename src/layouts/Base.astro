@@ -22,6 +22,13 @@ interface Props {
   modified?: Date;
   tags?: string[];
   noindex?: boolean;
+  /** JSON-LD object(s) — src/lib/structured-data.ts's builders. Rendered as
+      <script type="application/ld+json">, with `<` escaped so a title containing
+      "</script>" can't break out of the tag. */
+  jsonLd?: Record<string, unknown> | Record<string, unknown>[];
+  /** Extra <link rel="alternate"> feeds beyond the site-wide RSS + JSON Feed (e.g. an
+      orbit's own feed) — already run through href(), ready to use as-is. */
+  feeds?: { href: string; title: string; type?: string }[];
   /** Id of the orbit the page belongs to (posts, missions, orbit pages) — lets analytics count per orbit. */
   orbit?: string;
 }
@@ -36,6 +43,8 @@ const {
   modified,
   tags = [],
   noindex = false,
+  jsonLd,
+  feeds = [],
   orbit,
 } = Astro.props;
 
@@ -44,6 +53,12 @@ const fullTitle = title ? `${title} — ${SITE.name}` : SITE.title;
 const canonical = new URL(Astro.url.pathname, Astro.site);
 const ogImage = new URL(image ?? href('/og.png'), Astro.site);
 const rss = href('/rss.xml');
+const jsonFeed = href('/feed.json');
+// A BlogPosting with no image of its own gets the same one this page already gave Base —
+// one place (this) decides the og.png fallback, instead of every builder repeating it.
+const jsonLdItems = (jsonLd ? (Array.isArray(jsonLd) ? jsonLd : [jsonLd]) : []).map((item) =>
+  item['@type'] === 'BlogPosting' && item.image === undefined ? { ...item, image: ogImage.href } : item,
+);
 ---
 
 <!doctype html>
@@ -64,6 +79,8 @@ const rss = href('/rss.xml');
     <link rel="icon" href={href('/favicon-32.png')} type="image/png" sizes="32x32" />
     <link rel="apple-touch-icon" href={href('/apple-touch-icon.png')} />
     <link rel="alternate" type="application/rss+xml" title={`${SITE.name} — Transmissions`} href={rss} />
+    <link rel="alternate" type="application/feed+json" title={`${SITE.name} — Transmissions`} href={jsonFeed} />
+    {feeds.map((f) => <link rel="alternate" type={f.type ?? 'application/rss+xml'} title={f.title} href={f.href} />)}
     <link rel="sitemap" href={href('/sitemap-index.xml')} />
 
     <meta property="og:site_name" content={SITE.name} />
@@ -86,6 +103,12 @@ const rss = href('/rss.xml');
     <meta name="twitter:description" content={description} />
     <meta name="twitter:image" content={ogImage} />
     <meta name="twitter:image:alt" content={imageAlt ?? `${SITE.name} — ${SITE.author}`} />
+
+    {
+      jsonLdItems.map((item) => (
+        <script type="application/ld+json" set:html={JSON.stringify(item).replace(/</g, '\\u003c')} />
+      ))
+    }
 
     <script is:inline>
       try {

@@ -38,6 +38,49 @@ function fakeEl() {
   return el;
 }
 
+/** Like fakeEl(), but actually records what gets rendered into it (tag/cls/text, and
+ *  children created via createEl/createDiv), so a test can assert on the rendered DOM
+ *  shape without a real Obsidian window. */
+function recordingEl() {
+  const el = {
+    hidden: false,
+    text: undefined,
+    children: [],
+    addClass() {},
+    removeClass() {},
+    empty() {
+      el.children = [];
+    },
+    show() {
+      el.hidden = false;
+    },
+    hide() {
+      el.hidden = true;
+    },
+    setText(t) {
+      el.text = t;
+    },
+    setAttr() {},
+    createEl(tag, opts = {}) {
+      const child = recordingEl();
+      child.tag = tag;
+      child.cls = opts.cls;
+      child.text = opts.text;
+      el.children.push(child);
+      return child;
+    },
+    createDiv(opts) {
+      return el.createEl('div', opts);
+    },
+  };
+  return el;
+}
+
+/** Every li's text under every ul.oss-check-list rendered into `el` (recordingEl() only). */
+function checkListLines(el) {
+  return el.children.filter((c) => c.tag === 'ul' && c.cls === 'oss-check-list').flatMap((ul) => ul.children.map((li) => li.text));
+}
+
 class FakeNotice {
   constructor(message, timeout) {
     this.message = message;
@@ -393,6 +436,73 @@ test('republish: a failed dry run shows a Notice and never opens the dialog or p
   assert.equal(published, false);
   assert.equal(FakeNotice.calls.length, 1);
   assert.match(FakeNotice.calls[0].message, /YAML/);
+});
+
+/* ---------------------------------------------------------------- LIVE-08: the reworded move/redirect warning in the dialog */
+
+/** A TransmitModal wired up enough to call runCheck() directly (no real onOpen/renderForm —
+ *  same "call instance methods directly" approach the rest of this file uses). */
+function transmitModalFor(plugin, file) {
+  // Real valuesFromNote()/hasPage()/fm() all read this.app.metadataCache, which the plugin's
+  // real `app` (an empty stub — no real Obsidian window in these tests) doesn't have. Override
+  // them as own properties (the same pattern the tests above use), same as if the note carried
+  // no station-* properties yet, but with a non-empty slug so runCheck() doesn't bail out early.
+  plugin.valuesFromNote = () => ({
+    type: 'post',
+    title: file.basename,
+    slug: file.basename.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+    orbit: 'astro',
+    kind: 'essay',
+    status: 'ACTIVE',
+    date: '',
+    summary: '',
+    tags: [],
+    project: '',
+  });
+  plugin.hasPage = () => false;
+  plugin.fm = () => ({});
+  const modal = new Plugin.TransmitModal(plugin, file);
+  modal.checkEl = recordingEl();
+  modal.blockedEl = recordingEl();
+  modal.guardEl = recordingEl();
+  modal.cleanRoomEl = recordingEl();
+  return modal;
+}
+
+test("the Transmit dialog's check list shows the reworded warning when a move's destination orbit is public (\"now redirects here\")", async () => {
+  const file = new FakeTFile('Astrophysics/Jets.md', 'Jets');
+  const plugin = new Plugin({}, {});
+  plugin.preflight = async () => ({
+    ok: true,
+    dryRun: true,
+    action: 'moved',
+    path: '/transmissions/jets/',
+    redirects: { added: 1, removed: 0 },
+    guard: { confirm: false, confirmed: false, reasons: [] },
+    blocked: [],
+    warnings: ['Moves the page from /transmissions/old-jets/ — the old address now redirects here.'],
+  });
+  const modal = transmitModalFor(plugin, file);
+  await modal.runCheck();
+  assert.deepEqual(checkListLines(modal.checkEl), ['Moves the page from /transmissions/old-jets/ — the old address now redirects here.']);
+});
+
+test("the Transmit dialog's check list shows the reworded warning when a move's destination orbit is not public (\"stops working\")", async () => {
+  const file = new FakeTFile('Astrophysics/Jets.md', 'Jets');
+  const plugin = new Plugin({}, {});
+  plugin.preflight = async () => ({
+    ok: true,
+    dryRun: true,
+    action: 'moved',
+    path: '/transmissions/jets/',
+    redirects: { added: 0, removed: 0 },
+    guard: { confirm: false, confirmed: false, reasons: [] },
+    blocked: [],
+    warnings: ['Moves the page from /transmissions/old-jets/ — the old address stops working.'],
+  });
+  const modal = transmitModalFor(plugin, file);
+  await modal.runCheck();
+  assert.deepEqual(checkListLines(modal.checkEl), ['Moves the page from /transmissions/old-jets/ — the old address stops working.']);
 });
 
 /* ---------------------------------------------------------------- "Open transmission queue" (GROW-08) */

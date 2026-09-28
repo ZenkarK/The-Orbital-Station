@@ -215,6 +215,69 @@ test('changing the address moves the page; changing the type removes the old pag
   assert.equal(g(repo, 'status', '--porcelain', '--', 'src', 'public'), '');
 });
 
+/* ---------------------------------------------------------------- LIVE-08: redirects */
+
+test('LIVE-08: moving a page records a redirect, collapses chains, and cleans up on unpublish', async () => {
+  const redirectsFile = path.join(repo, 'src', 'redirects.json');
+  const redirects = () => (fs.existsSync(redirectsFile) ? JSON.parse(fs.readFileSync(redirectsFile, 'utf8')) : {});
+
+  writeNote('Redirecting.md', '---\nstation: post\nstation-orbit: words\n---\nA page that moves around.\n');
+  await run('Redirecting.md'); // published at /transmissions/redirecting/
+
+  // A → B
+  const toB = await run('Redirecting.md', { slug: 'redirect-b' });
+  assert.equal(toB.action, 'moved');
+  assert.deepEqual(toB.redirects, { added: 1, removed: 0 });
+  assert.deepEqual(redirects(), { '/transmissions/redirecting/': '/transmissions/redirect-b/' });
+  const committedFiles = g(remote, 'show', '--name-only', '--format=', 'HEAD').split('\n');
+  assert.ok(committedFiles.includes('src/redirects.json'), committedFiles.join(', '));
+  assert.equal(g(remote, 'log', '-1', '--format=%s'), 'Move: Redirecting');
+
+  // B → C: the earlier A→B entry collapses to A→C, alongside the new B→C
+  const toC = await run('Redirecting.md', { slug: 'redirect-c' });
+  assert.equal(toC.action, 'moved');
+  assert.deepEqual(toC.redirects, { added: 1, removed: 0 });
+  assert.deepEqual(redirects(), {
+    '/transmissions/redirecting/': '/transmissions/redirect-c/',
+    '/transmissions/redirect-b/': '/transmissions/redirect-c/',
+  });
+
+  // C → A (back to the start): nothing may end up pointing at itself
+  const backToA = await run('Redirecting.md', { slug: 'redirecting' });
+  assert.equal(backToA.action, 'moved');
+  assert.deepEqual(backToA.redirects, { added: 1, removed: 1 });
+  const finalMap = redirects();
+  assert.equal(finalMap['/transmissions/redirecting/'], undefined, 'no self-redirect at the live address');
+  assert.equal(finalMap['/transmissions/redirect-b/'], '/transmissions/redirecting/');
+  assert.equal(finalMap['/transmissions/redirect-c/'], '/transmissions/redirecting/');
+
+  // unpublish removes every redirect that pointed at the now-gone page
+  const gone = await run('Redirecting.md', { unpublish: true });
+  assert.deepEqual(gone.removed, ['/transmissions/redirecting/']);
+  assert.deepEqual(gone.redirects, { added: 0, removed: 2 });
+  assert.deepEqual(redirects(), {});
+  assert.ok(!fs.existsSync(redirectsFile));
+});
+
+test('LIVE-08: the move warning says the old address now redirects, once the destination is public', async () => {
+  writeNote('Reworded.md', '---\nstation: post\nstation-orbit: words\n---\nBody.\n');
+  await run('Reworded.md');
+  const moved = await run('Reworded.md', { slug: 'reworded-two' });
+  assert.ok(moved.warnings.some((w) => w.includes('old address now redirects here')), moved.warnings.join(', '));
+  await run('Reworded.md', { unpublish: true });
+});
+
+test('LIVE-08: moving into a phase-only orbit records no redirect (the destination is never built)', async () => {
+  writeNote('IntoPhaseOnly.md', '---\nstation: post\nstation-orbit: words\n---\nGoing quiet.\n');
+  await run('IntoPhaseOnly.md');
+  const moved = await run('IntoPhaseOnly.md', { orbit: 'body', slug: 'into-phase-only-two', 'confirm-sensitive': true });
+  assert.equal(moved.action, 'moved');
+  assert.deepEqual(moved.redirects, { added: 0, removed: 0 });
+  assert.ok(moved.warnings.some((w) => w.includes('old address stops working')), moved.warnings.join(', '));
+  assert.ok(!fs.existsSync(path.join(repo, 'src', 'redirects.json')));
+  await run('IntoPhaseOnly.md', { unpublish: true, 'confirm-sensitive': true });
+});
+
 test('validates properties with clear messages', async () => {
   writeNote('Bad.md', '---\nstation: post\n---\nx\n');
   await assert.rejects(run('Bad.md'), /Choose an orbit/);

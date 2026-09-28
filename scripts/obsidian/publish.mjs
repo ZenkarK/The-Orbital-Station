@@ -103,6 +103,7 @@ import {
   sensitiveFolderFor,
   DEPLOY_BRANCH,
 } from './site.mjs';
+import { redirectsPath, loadRedirects, saveRedirects, recordMove, clearFrom, clearTo, diffCounts } from './redirects.mjs';
 
 const DEFAULT_REPO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const MARKER = '# Published from Obsidian by the Orbital Station publisher.';
@@ -472,13 +473,21 @@ export async function publish(opts) {
 
   /* --- unpublish: remove every page that is this note's --- */
   if (opts.unpublish) {
-    if (opts['dry-run']) return { ok: true, action: 'unpublish', dryRun: true, title, removes: mine.map((p) => `/${p.route}/${p.slug}/`) };
+    const removedPaths = mine.map((p) => `/${p.route}/${p.slug}/`);
+    // LIVE-08: a redirect that used to send visitors to a page we're about to remove would
+    // now send them nowhere — drop it rather than leave a dead end.
+    const redirectsBefore = loadRedirects(repo);
+    const redirectsAfter = { ...redirectsBefore };
+    for (const p of removedPaths) clearTo(redirectsAfter, p);
+    const redirects = diffCounts(redirectsBefore, redirectsAfter);
+
+    if (opts['dry-run']) return { ok: true, action: 'unpublish', dryRun: true, title, removes: removedPaths, redirects };
     if (!mine.length) {
       // Nothing left locally — but an earlier removal may still be waiting to be pushed:
       // only then (the page is still on GitHub) is there anything to push.
       if (useGit && !opts['no-push'] && (await upstreamHasSource(repo, id))) {
         const g = await commitAndPush(repo, [], `Unpublish: ${title}`, { push: true });
-        return { ok: true, action: 'unpublished', title, removed: [], ...g, warnings };
+        return { ok: true, action: 'unpublished', title, removed: [], redirects, ...g, warnings };
       }
       throw new UserError('Nothing from this note is published.');
     }
@@ -486,10 +495,16 @@ export async function publish(opts) {
       rmrf(p.dir);
       rmrf(p.filesDir);
     }
+    if (redirects.added || redirects.removed) saveRedirects(repo, redirectsAfter);
     const g = useGit
-      ? await commitAndPush(repo, mine.flatMap((p) => [p.dir, p.filesDir]), `Unpublish: ${title}`, { push: !opts['no-push'] })
+      ? await commitAndPush(
+          repo,
+          [...mine.flatMap((p) => [p.dir, p.filesDir]), redirectsPath(repo)],
+          `Unpublish: ${title}`,
+          { push: !opts['no-push'] },
+        )
       : { committed: false, pushed: false };
-    const result = { ok: true, action: 'unpublished', title, removed: mine.map((p) => `/${p.route}/${p.slug}/`), ...g, warnings };
+    const result = { ok: true, action: 'unpublished', title, removed: removedPaths, redirects, ...g, warnings };
     if (!opts.json && !opts['no-write-back'] && (g.pushed || g.upToDate || !g.remote || opts['no-push'])) {
       writeBack(noteAbs, {}, ['station-published', 'station-url']);
     }
@@ -695,6 +710,21 @@ export async function publish(opts) {
   const unchanged = !!atTarget && isMine(atTarget) && atTarget.text === output && sameAssets(atTarget, assets);
   const action = unchanged ? 'unchanged' : atTarget ? 'updated' : stale.length ? 'moved' : 'published';
 
+  /* --- redirects (LIVE-08): only recorded when the destination orbit is public — a redirect
+         to a phase-only/hidden page would both reveal its slug and lead nowhere, since that
+         page is never built (src/lib/content.ts drops it before getStaticPaths ever sees it).
+         A page now lives (or will live) at `destPath`, so any stale redirect *from* there is
+         dropped regardless of orbit — see clearFrom. */
+  const destPath = `/${route}/${slug}/`;
+  const destPublic = !!(orbitObj && orbitObj.visibility === 'public');
+  const redirectsBefore = loadRedirects(repo);
+  const redirectsAfter = { ...redirectsBefore };
+  if (action === 'moved' && destPublic) {
+    for (const p of stale) recordMove(redirectsAfter, `/${p.route}/${p.slug}/`, destPath);
+  }
+  clearFrom(redirectsAfter, destPath);
+  const redirects = diffCounts(redirectsBefore, redirectsAfter);
+
   const result = {
     ok: true,
     action,
@@ -712,9 +742,14 @@ export async function publish(opts) {
     secrets,
     media,
     blocked,
+    redirects,
     warnings: [
       ...embeds.map((e) => `Included the full text of "${e}" (embedded) — it becomes public with this page.`),
-      ...stale.map((p) => `Moves the page from /${p.route}/${p.slug}/ — the old address stops working.`),
+      ...stale.map((p) =>
+        destPublic
+          ? `Moves the page from /${p.route}/${p.slug}/ — the old address now redirects here.`
+          : `Moves the page from /${p.route}/${p.slug}/ — the old address stops working.`,
+      ),
       ...new Set(warnings),
     ],
   };
@@ -749,14 +784,18 @@ export async function publish(opts) {
     }
     fs.writeFileSync(pageFile, output);
   }
+  if (redirects.added || redirects.removed) saveRedirects(repo, redirectsAfter);
 
   let g = { committed: false, pushed: false };
   if (!useGit) g.note = opts['no-commit'] ? 'Files written; not committed.' : 'Not a git repository — files written only.';
   else {
     const verb = action === 'published' ? 'Publish' : action === 'moved' ? 'Move' : 'Update';
-    g = await commitAndPush(repo, [pageDir, filesDir, ...stale.flatMap((p) => [p.dir, p.filesDir])], `${verb}: ${title}`, {
-      push: !opts['no-push'],
-    });
+    g = await commitAndPush(
+      repo,
+      [pageDir, filesDir, ...stale.flatMap((p) => [p.dir, p.filesDir]), redirectsPath(repo)],
+      `${verb}: ${title}`,
+      { push: !opts['no-push'] },
+    );
     if (g.branch && g.branch !== DEPLOY_BRANCH) result.warnings.push(`The site folder is on branch "${g.branch}" — the site only deploys from ${DEPLOY_BRANCH}.`);
   }
   const online = !!(g.remote && (g.pushed || g.upToDate) && g.branch === DEPLOY_BRANCH);

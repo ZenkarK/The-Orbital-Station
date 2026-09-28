@@ -1,41 +1,19 @@
 import rss from '@astrojs/rss';
 import type { APIContext } from 'astro';
-import { SITE, POST_KINDS } from '../site.config';
+import { SITE } from '../site.config';
 import { getPosts } from '../lib/content';
-import { orbitById } from '../lib/orbits';
+import { postFeedItem, toRssItem } from '../lib/feed';
 import { href } from '../lib/util';
-
-const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
 export async function GET(context: APIContext) {
   const posts = (await getPosts()).filter((p) => !p.data.draft);
   const site = context.site!;
-  const abs = (path: string) => new URL(href(path), site).href;
-
   return rss({
     title: `${SITE.name} — Transmissions`,
     description: SITE.description,
-    site: abs('/'),
+    site: new URL(href('/'), site).href,
     trailingSlash: true,
-    items: posts.map((post) => {
-      const link = abs(`/transmissions/${post.id}/`);
-      // Full text for .md posts; MDX posts fall back to the summary. Root-relative
-      // links already carry the base path, so they only need the origin.
-      const html = post.rendered?.html
-        ?.replace(/(href|src)="\/(?!\/)/g, `$1="${site.origin}/`)
-        .trim();
-      return {
-        title: post.data.title,
-        link,
-        pubDate: post.data.date,
-        description: post.data.summary,
-        content: html
-          ? `<p><em>${esc(post.data.summary)}</em></p>${html}<p><a href="${link}">Read on ${esc(SITE.name)} →</a></p>`
-          : undefined,
-        categories: [orbitById(post.data.orbit).name, POST_KINDS[post.data.kind], ...post.data.tags],
-        author: SITE.author,
-      };
-    }),
+    items: posts.map((post) => toRssItem(postFeedItem(post, site))),
     customData: `<language>${SITE.locale.toLowerCase()}</language><generator>Astro</generator>`,
   });
 }

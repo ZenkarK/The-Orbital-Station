@@ -9,6 +9,7 @@ import { getPosts, getProjects, getLibrary, getTrajectories, postsForProject } f
 import { rankedOrbits, orbitCountWord, capitalize, nearCapacityStatus } from '../lib/orbits';
 import { displayedOrbits } from '../lib/visibility';
 import { href, two } from '../lib/util';
+import { personLd } from '../lib/structured-data';
 
 const [posts, projects, library, trajectories] = await Promise.all([
   getPosts(),
@@ -34,9 +35,10 @@ const nearest = rankedOrbits()
   .join(' · ');
 const capacity = nearCapacityStatus();
 const year = new Date().getUTCFullYear();
+const jsonLd = personLd(Astro.site!, { description: SITE.description });
 ---
 
-<Base>
+<Base jsonLd={jsonLd}>
   <div class="page">
     <span class="eyebrow">THE ORBITAL MODEL · OPERATIONS · {year}</span>
     <h1 class="hero-title">{capitalize(orbitCountWord)} orbits.<span class="ghost">One center of mass.</span></h1>

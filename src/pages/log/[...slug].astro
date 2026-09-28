@@ -8,6 +8,7 @@ import Sq from '../../components/Sq.astro';
 import { getPosts, getProjects, postsForProject, type Post, type Project } from '../../lib/content';
 import { orbitById } from '../../lib/orbits';
 import { href, stationDate, two } from '../../lib/util';
+import { breadcrumbLd } from '../../lib/structured-data';
 
 export async function getStaticPaths() {
   const [projects, posts] = await Promise.all([getProjects(), getPosts()]);
@@ -28,12 +29,20 @@ const { Content } = await render(project);
 const hasBrief = Boolean(project.body?.trim());
 const o = orbitById(orbit);
 const host = (u: string) => new URL(u).host.replace(/^www\./, '').toUpperCase();
+const jsonLd = breadcrumbLd(
+  [
+    { name: 'Home', path: '/' },
+    { name: 'Flight Log', path: '/log/' },
+    { name: title, path: `/log/${project.id}/` },
+  ],
+  Astro.site!,
+);
 // READ-02: same generated-card-over-cover reasoning as transmissions — see that page.
 const ogImage = href(`/og/log/${project.id}.png`);
 const ogImageAlt = `${title} — a mission log on the ${o.name} orbit, Orbital Station.`;
 ---
 
-<Base title={title} description={summary} image={ogImage} imageAlt={ogImageAlt} noindex={draft}>
+<Base title={title} description={summary} image={ogImage} imageAlt={ogImageAlt} noindex={draft} jsonLd={jsonLd}>
   <div class="page">
     <a class="backlink" href={href('/log/')}>← FLIGHT LOG</a>
     <SectionHead tag={`MISSION ${two(no)}`}>

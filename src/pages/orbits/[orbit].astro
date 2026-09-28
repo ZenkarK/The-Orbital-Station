@@ -5,11 +5,12 @@ import TxItem from '../../components/TxItem.astro';
 import MissionCard from '../../components/MissionCard.astro';
 import MiniOrrery from '../../components/MiniOrrery.astro';
 import Sq from '../../components/Sq.astro';
-import { type Orbit } from '../../site.config';
+import { SITE, type Orbit } from '../../site.config';
 import { getPosts, getProjects, getLibrary, getTrajectories, postsForProject } from '../../lib/content';
 import { orbitProximity, phaseLabel } from '../../lib/orbits';
 import { displayedOrbits, visibilityOf } from '../../lib/visibility';
 import { href } from '../../lib/util';
+import { breadcrumbLd } from '../../lib/structured-data';
 
 /* A hidden orbit gets no page at all: not in getStaticPaths, so it 404s.
    prev/next walk the displayed ring only, so navigation never lands on one. */
@@ -52,13 +53,31 @@ const nothing = !posts.length && !projects.length && !library.length && !traject
 /* phase-only: the body and its phase still show, but nothing filed there is
    counted or listed — so instead of the counts row and empty-state copy, say so. */
 const phaseOnly = visibilityOf(o) === 'phase-only';
+// GROW-02: only a public orbit has anything to feed — a phase-only orbit's posts never
+// become pages at all (src/lib/content.ts), so there's no orbits/[orbit]/rss.xml for it.
+const feedHref = href(`/orbits/${o.id}/rss.xml`);
+const jsonLd = breadcrumbLd(
+  [
+    { name: 'Home', path: '/' },
+    { name: 'Orbits', path: '/orbits/' },
+    { name: o.name, path: `/orbits/${o.id}/` },
+  ],
+  Astro.site!,
+);
 // READ-02: the card draws only on `o.name`/`o.color`/`o.desc` and phase — the same
 // config-level things this page shows a phase-only orbit, never a count or title.
 const ogImage = href(`/og/orbits/${o.id}.png`);
 const ogImageAlt = `${name} orbit — Orbital Station.`;
 ---
 
-<Base title={`${name} orbit`} description={o.desc} image={ogImage} imageAlt={ogImageAlt}>
+<Base
+  title={`${name} orbit`}
+  description={o.desc}
+  image={ogImage}
+  imageAlt={ogImageAlt}
+  feeds={phaseOnly ? [] : [{ href: feedHref, title: `${SITE.name} — ${o.name}` }]}
+  jsonLd={jsonLd}
+>
   <div class="page">
     <a class="backlink" href={href('/orbits/')}>← ALL ORBITS</a>
     <div class="orbit-hero">
@@ -78,6 +97,7 @@ const ogImageAlt = `${name} orbit — Orbital Station.`;
               <div class="spec-row"><span>TRANSMISSIONS · MISSIONS · HOLDINGS</span><b>{posts.length} · {projects.length} · {library.length}</b></div>
             )
           }
+          {!phaseOnly && <div class="spec-row"><span>FEED</span><b><a href={feedHref}>ORBIT RSS →</a></b></div>}
         </div>
       </div>
       <div class="panel reg mini-orrery">

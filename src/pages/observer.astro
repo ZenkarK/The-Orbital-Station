@@ -6,15 +6,21 @@ import { SITE, PHASE_LOGGED, ANALYTICS } from '../site.config';
 import { getPosts, getProjects } from '../lib/content';
 import { rankedOrbits } from '../lib/orbits';
 import { href } from '../lib/util';
+import { personLd } from '../lib/structured-data';
 
 const [posts, projects] = await Promise.all([getPosts(), getProjects()]);
 const phase = rankedOrbits()
   .slice(0, 2)
   .map((r) => r.orbit.name)
   .join(' · ');
+const description = `Who keeps this station — ${SITE.author}, systems engineer in medical imaging and astrophysicist by training.`;
+const jsonLd = personLd(Astro.site!, {
+  jobTitle: 'Systems Engineer',
+  description: `Systems engineer in medical imaging by day, an astrophysicist by training, and the sole operator of ${SITE.name}.`,
+});
 ---
 
-<Base title="Observer" description={`Who keeps this station — ${SITE.author}, systems engineer in medical imaging and astrophysicist by training.`}>
+<Base title="Observer" description={description} jsonLd={jsonLd}>
   <div class="page">
     <SectionHead tag="SEC. E" />
     <h1 class="title">The Observer</h1>

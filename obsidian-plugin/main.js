@@ -27,11 +27,13 @@ const path = require('path');
  * @typedef {{ confirm: boolean, confirmed: boolean, reasons: string[] }} Guard
  * @typedef {{ file: string, line: number, column: number, rule: string, label: string, fingerprint: string, preview: string }} SecretFinding
  * @typedef {{ file: string, dest?: string, kind: 'clean'|'scrubbed'|'text'|'unscrubbed'|'blocked', removed: string[], reason?: string }} MediaEntry
+ * @typedef {{ added: number, removed: number }} RedirectCounts
  * @typedef {{ ok: boolean, error?: string, action?: string, title?: string, slug?: string, url?: string|null,
  *   path?: string, fields?: Record<string, any>, existing?: string[], removed?: string[], embeds?: string[],
  *   committed?: boolean, pushed?: boolean, upToDate?: boolean, remote?: boolean, branch?: string|null,
  *   online?: boolean, note?: string, warnings?: string[], dryRun?: boolean,
- *   guard?: Guard, secrets?: SecretFinding[], media?: MediaEntry[], blocked?: string[] }} PublishResult
+ *   guard?: Guard, secrets?: SecretFinding[], media?: MediaEntry[], blocked?: string[],
+ *   redirects?: RedirectCounts }} PublishResult
  * @typedef {{ type: string, title: string, slug: string, orbit: string, kind: string, status: string,
  *   date: string, summary: string, tags: string[], project: string }} Values
  * @typedef {{ note: string, title: string, orbit: string|null, public: boolean, sensitive: string|null,
