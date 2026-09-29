@@ -27,6 +27,8 @@ repo, and nothing in the repo should link to it. Read `docs/PRD.md` Appendix C
 | `npm test` | `node --test` over `tests/**/*.test.mjs` |
 | `npm run scan:secrets` | PRIV-03: local secret scan (`scripts/scan-secrets.mjs`), same engine as the CLI's publish-time gate |
 | `npm run scan:media` | PRIV-04: scan committed `public/` and `src/content/` binaries for leftover metadata; add `-- --fix` to scrub in place |
+| `npm run queue -- --vault <dir>` | GROW-08: the transmission queue (`station-queue` notes) by target orbit + the launch count (8 across 5); `--write-base` writes `Transmission Queue.base`. Read-only on the vault otherwise — only ever against a throwaway vault in tests |
+| `npm run fonts` | READ-07: regenerate the subset fonts (`src/assets/fonts/`, `src/styles/fonts.css`) from the Fontsource packages; rerun after upgrading one (`tests/site/fonts.test.mjs` fails when they drift) |
 
 ## Environment quirks (this machine, Windows 11)
 
@@ -62,6 +64,12 @@ repo, and nothing in the repo should link to it. Read `docs/PRD.md` Appendix C
   pushes to a `git init --bare` remote next to it. Remove the whole `tmp` folder when
   done (`fs.rmSync(tmp, { recursive: true, force: true })`); nothing here touches
   `C:\Zenkar's Vault` or this repo's own git history.
+- **Built-site tests** use `tests/helpers/site-build.mjs`: `buildSiteCopy({ edit, env })`
+  copies the site to `os.tmpdir()` with its own Astro/Vite caches (so any number of builds,
+  including your own `npm run build`, can run side by side), `serveDir(dist, base)` serves it
+  like Pages (pass `BASE_PATH=/The-Orbital-Station/` to mirror the live sub-path), and
+  `findChrome()` finds a browser for the puppeteer-core tests (analytics, Orbit Kit) — they
+  skip without one and launch with `--no-sandbox` for Ubuntu CI.
 - **Site leakage test** (`tests/site/visibility.test.mjs`, MODEL-07): builds a throwaway
   copy of the site with one orbit switched to `hidden`, plants canary content in a
   `phase-only` orbit and the newly-hidden one, builds it, and asserts none of that
@@ -130,6 +138,9 @@ single shot but can't set `localStorage` first, so it always renders the default
 | Clean-room attachments (PRIV-04) | `scripts/obsidian/scrub/index.mjs`; `publish.mjs`'s `media`/`blocked` fields | `--allow-metadata` (CLI only) copies one attachment unscrubbed with a warning — never bypasses the secret scan. `ORBITAL_SCRUB_TOOLS=none` forces ExifTool/ffmpeg off |
 | Media scan, standalone + CI (PRIV-04) | `scripts/scan-media.mjs`; `.github/workflows/ci.yml` `media` job | `npm run scan:media [-- --fix] [--json]` |
 | NEAR capacity warning (MODEL-03) | `NEAR_CAPACITY` in `src/site.config.ts`; checked at build time | Change the constant; the build warns and the Bridge's caption states the count honestly when orbits over capacity run NEAR |
+| Cookie-free analytics (LIVE-04) | `ANALYTICS.goatcounter` in `src/site.config.ts`; `src/lib/beacon.ts` + `src/components/Analytics.astro` | Blank = no script, no request. Sends path (no query/fragment), title, screen, external referrer only; never under DNT/GPC, webdriver or localhost |
+| Launch queue (GROW-08) | `scripts/obsidian/queue.mjs` (also `publish.mjs --queue`, the plugin's "Open transmission queue") | Queued notes in `SENSITIVE_FOLDERS` or aimed at a non-public orbit are flagged (exit 1); the generated Base filters sensitive folders out |
+| Redirects on move (LIVE-08) | `src/redirects.json`, maintained by `scripts/obsidian/redirects.mjs` | Never records a redirect toward a non-public orbit (it would reveal the slug) |
 
 ## Conventions
 
