@@ -79,4 +79,10 @@ const NAV = [
     } catch {}
     paint();
   });
+
+  /* On a phone the nav scrolls sideways, and browsers only scroll a focused link into it once
+     it is entirely hidden — so a link half past the edge would take focus out of sight. */
+  document.querySelector('.nav')?.addEventListener('focusin', (e) => {
+    (e.target as HTMLElement).scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  });
 </script>

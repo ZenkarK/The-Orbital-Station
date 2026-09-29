@@ -294,6 +294,11 @@ main:focus {
     mask-image: linear-gradient(90deg, #000 85%, transparent);
     padding-right: 48px;
   }
+  /* keyboard users see where focus is: no fade over a link reached by Tab */
+  .nav:has(:focus-visible) {
+    -webkit-mask-image: none;
+    mask-image: none;
+  }
 }
 @media (max-width: 480px) {
   .readout,
