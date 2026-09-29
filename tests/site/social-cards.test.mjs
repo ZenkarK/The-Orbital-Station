@@ -94,9 +94,17 @@ test('public/og.png (the fallback) is a 1200×630 PNG at or under 100 KB', async
 });
 
 test('the committed public/og.png is current (rerun `npm run og` if not — it goes stale as ORBITS grows or shrinks)', async () => {
-  const fresh = await renderOg();
-  const committed = fs.readFileSync(OG_FILE);
-  assert.ok(fresh.equals(committed), 'public/og.png is stale — its orbit count/colours no longer match src/site.config.ts');
+  // Compare decoded pixels, not file bytes: sharp's PNG encoder (zlib-ng) picks its
+  // deflate path by CPU features, so the same picture can compress to a few bytes more
+  // or less on another machine (the owner's PC vs a CI runner) without being stale.
+  const decode = async (png) => {
+    const { data, info } = await sharp(png).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+    return { data, width: info.width, height: info.height };
+  };
+  const fresh = await decode(await renderOg());
+  const committed = await decode(fs.readFileSync(OG_FILE));
+  assert.deepEqual([committed.width, committed.height], [fresh.width, fresh.height], 'public/og.png has the wrong dimensions');
+  assert.ok(fresh.data.equals(committed.data), 'public/og.png is stale — its orbit count/colours no longer match src/site.config.ts');
 });
 
 test('a hidden orbit gets no card, matching it having no orbit page at all', () => {
