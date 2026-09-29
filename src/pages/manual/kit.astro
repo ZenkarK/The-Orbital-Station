@@ -437,7 +437,16 @@ const palette = ORBITS.map((o) => o.color);
         const pct = row.querySelector<HTMLElement>('.kit-pct');
         if (pct) pct.textContent = `${clockProximityPct(normalizeClock(o.clock))}%`;
         const clockInput = row.querySelector<HTMLInputElement>('.kit-clock');
-        if (clockInput) clockInput.setAttribute('aria-label', `${o.name || `orbit ${i + 1}`} clock position, e.g. 12:00`);
+        if (clockInput) {
+          clockInput.setAttribute('aria-label', `${o.name || `orbit ${i + 1}`} clock position, e.g. 12:00`);
+          // A drag or a keyboard nudge sets o.clock directly, bypassing this field, so
+          // it needs the same refresh the SVG body's aria-valuetext already gets above —
+          // otherwise the row keeps showing the pre-drag time next to an updated percentage,
+          // a visibly self-contradictory readout. Skipped only while this exact field has
+          // focus, so it never fights a visitor mid-keystroke in the field itself (its own
+          // 'input'/'change' handlers above own that case).
+          if (document.activeElement !== clockInput) clockInput.value = normalizeClock(o.clock);
+        }
         const removeBtn = row.querySelector<HTMLButtonElement>('.kit-remove');
         if (removeBtn) removeBtn.setAttribute('aria-label', `Remove ${o.name || 'this orbit'}`);
       });

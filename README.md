@@ -191,8 +191,8 @@ public orbits. Notes in sensitive folders never appear in the Base; a queued one
 at a phase-only or hidden orbit, is flagged. The same report from a terminal:
 
 ```
-npm run queue -- --vault "C:Zenkar's Vault"                # the queue + launch count; exits 1 if a note is flagged
-npm run queue -- --vault "C:Zenkar's Vault" --write-base   # also write the Base
+npm run queue -- --vault "C:\Zenkar's Vault"                # the queue + launch count; exits 1 if a note is flagged
+npm run queue -- --vault "C:\Zenkar's Vault" --write-base   # also write the Base
 ```
 
 A `Transmission Queue.base` you made yourself (without the publisher's header) is never overwritten.
@@ -294,10 +294,14 @@ orbit's colour as the one strong accent, the mono meta line, the Archivo title, 
 station's name and author at the foot — built with [Satori](https://github.com/vercel/satori)
 and rasterized with `sharp`). How far a long title steps its size down before it's
 ellipsized lives separately in `src/lib/og-title-fit.ts`, unit-tested in
-`tests/site/og-title-fit.test.mjs`. Regenerate `public/og.png` by hand if you redesign
-it — keep it at 1200×630 and well under 100 KB (`sharp(...).png({ palette: true,
-compressionLevel: 9, effort: 10 })` got the current one from 157 KB down to ~70 KB with
-no visible loss).
+`tests/site/og-title-fit.test.mjs`.
+
+`public/og.png`, the fallback, isn't built automatically like the rest — it's generated
+by `scripts/generate-og.mjs` from the live orbit count and colours in `site.config.ts`
+(same Satori-to-`sharp` pipeline, kept at 1200×630 and well under 100 KB). Run `npm run
+og` to regenerate it after adding, removing or recolouring an orbit, or after changing
+its own layout; `tests/site/social-cards.test.mjs` fails the build if it's ever left
+stale.
 
 ---
 

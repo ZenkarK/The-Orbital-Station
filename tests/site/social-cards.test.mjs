@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import sharp from 'sharp';
 import { buildSiteCopy, ROOT } from '../helpers/site-build.mjs';
+import { renderOg, OUT_FILE as OG_FILE } from '../../scripts/generate-og.mjs';
 
 /* READ-02 — every transmission, mission and orbit page gets its own generated
    social card; everything else (and any orbit dropped from a card, in principle)
@@ -90,6 +91,12 @@ test('public/og.png (the fallback) is a 1200×630 PNG at or under 100 KB', async
   assert.equal(meta.format, 'png');
   assert.equal(meta.width, 1200);
   assert.equal(meta.height, 630);
+});
+
+test('the committed public/og.png is current (rerun `npm run og` if not — it goes stale as ORBITS grows or shrinks)', async () => {
+  const fresh = await renderOg();
+  const committed = fs.readFileSync(OG_FILE);
+  assert.ok(fresh.equals(committed), 'public/og.png is stale — its orbit count/colours no longer match src/site.config.ts');
 });
 
 test('a hidden orbit gets no card, matching it having no orbit page at all', () => {

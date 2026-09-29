@@ -38,7 +38,10 @@ before(
     if (skip) return;
     site = buildSiteCopy({ prefix: 'orbital-kit-e2e-', env: { BASE_PATH: BASE } });
     server = await serveDir(site.dist, BASE);
-    browser = await puppeteer.launch({ executablePath: chromePath, headless: 'new' });
+    // --no-sandbox, like tests/site/analytics.test.mjs's launch: ubuntu-latest CI
+    // runners ship Chrome preinstalled but run it unprivileged, so an unsandboxed
+    // launch fails outright there.
+    browser = await puppeteer.launch({ executablePath: chromePath, headless: 'new', args: ['--no-sandbox'] });
   },
   { timeout: 300000 },
 );
@@ -364,6 +367,50 @@ test('each orbit body slider has an accessible name', { skip, timeout: 20000 }, 
     await page.close();
   }
 });
+
+test(
+  "dragging or keyboard-nudging a body keeps its row's clock field from going stale",
+  { skip, timeout: 30000 },
+  async () => {
+    const page = await newPage();
+    try {
+      await gotoKit(page);
+      await page.click('[data-preset="blank"]');
+      await page.waitForSelector('.kit-orbit-row');
+
+      const firstId = await page.$eval('[data-kit-svg] [data-body]', (el) => el.dataset.body);
+      const clockSel = `.kit-orbit-row[data-id="${firstId}"] .kit-clock`;
+      const readClock = async () => {
+        const valuetext = await page.$eval(`[data-body="${firstId}"]`, (el) => el.getAttribute('aria-valuetext'));
+        const [, bodyClock] = valuetext.match(/, ([\d:]+) o'clock$/) ?? [];
+        const fieldClock = await page.$eval(clockSel, (el) => el.value);
+        return { bodyClock, fieldClock };
+      };
+
+      // Keyboard nudge: the SVG body's own aria-valuetext updates immediately;
+      // its row's clock field should track it, not keep showing the pre-nudge time.
+      await focusEl(page, `[data-body="${firstId}"]`);
+      await page.keyboard.press('ArrowRight');
+      await page.keyboard.press('ArrowRight');
+      let { bodyClock, fieldClock } = await readClock();
+      assert.equal(fieldClock, bodyClock, "the row's clock field went stale after a keyboard nudge");
+
+      // A real pointer drag should do the same.
+      const box = await page.$eval(`[data-body="${firstId}"]`, (el) => {
+        const r = el.getBoundingClientRect();
+        return { x: r.x + r.width / 2, y: r.y + r.height / 2 };
+      });
+      await page.mouse.move(box.x, box.y);
+      await page.mouse.down();
+      await page.mouse.move(box.x + 60, box.y + 60, { steps: 10 });
+      await page.mouse.up();
+      ({ bodyClock, fieldClock } = await readClock());
+      assert.equal(fieldClock, bodyClock, "the row's clock field went stale after a drag");
+    } finally {
+      await page.close();
+    }
+  },
+);
 
 test(
   "renaming an orbit refreshes its clock input's and remove button's aria-labels",

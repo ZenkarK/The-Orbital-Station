@@ -29,6 +29,7 @@ repo, and nothing in the repo should link to it. Read `docs/PRD.md` Appendix C
 | `npm run scan:media` | PRIV-04: scan committed `public/` and `src/content/` binaries for leftover metadata; add `-- --fix` to scrub in place |
 | `npm run queue -- --vault <dir>` | GROW-08: the transmission queue (`station-queue` notes) by target orbit + the launch count (8 across 5); `--write-base` writes `Transmission Queue.base`. Read-only on the vault otherwise — only ever against a throwaway vault in tests |
 | `npm run fonts` | READ-07: regenerate the subset fonts (`src/assets/fonts/`, `src/styles/fonts.css`) from the Fontsource packages; rerun after upgrading one (`tests/site/fonts.test.mjs` fails when they drift) |
+| `npm run og` | READ-02: regenerate the site-wide fallback social card (`public/og.png`) from `src/site.config.ts`; rerun after adding/removing/recolouring an orbit (`tests/site/social-cards.test.mjs` fails when it's stale) |
 
 ## Environment quirks (this machine, Windows 11)
 

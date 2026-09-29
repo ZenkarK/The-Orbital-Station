@@ -21,7 +21,8 @@
     "scan:secrets": "node scripts/scan-secrets.mjs",
     "scan:media": "node scripts/scan-media.mjs",
     "queue": "node scripts/obsidian/queue.mjs",
-    "fonts": "node scripts/subset-fonts.mjs"
+    "fonts": "node scripts/subset-fonts.mjs",
+    "og": "node scripts/generate-og.mjs"
   },
   "dependencies": {
     "@astrojs/markdown-satteri": "^0.4.2",
