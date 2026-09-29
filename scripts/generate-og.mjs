@@ -11,7 +11,9 @@
    rasterises), reading the orbit count, colours and clock positions
    straight from site.config.ts, so growing or shrinking the Model and
    rerunning `npm run og` is all it takes. Deterministic — same config,
-   same bytes.
+   same pixels (the PNG's own bytes can still vary a little by machine, since
+   the encoder's deflate path depends on the CPU, so the test compares decoded
+   pixels rather than the file).
 
    Layout mirrors the site's own hand-made card, not just its data: a dark
    ground with an inset framed panel (thin border, corner brackets, a hard
