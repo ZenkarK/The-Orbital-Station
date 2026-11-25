@@ -97,10 +97,12 @@ function plantFixtures(tmp) {
   // never reach /now/ (or anywhere else; MODEL-07 already covers that in visibility.test.mjs).
   fs.writeFileSync(path.join(postsDir, `${T.kin}.md`), postFrontmatter(T.kin, 'kin', '2026-01-05'));
   // SYSTEMS is public and NEAR (clock 12:40) — four canaries, newest-first: sys4 > sys3 > sys2 > sys1.
-  fs.writeFileSync(path.join(postsDir, `${T.sys1}.md`), postFrontmatter(T.sys1, 'systems', '2026-09-27'));
-  fs.writeFileSync(path.join(postsDir, `${T.sys2}.md`), postFrontmatter(T.sys2, 'systems', '2026-09-28'));
-  fs.writeFileSync(path.join(postsDir, `${T.sys3}.md`), postFrontmatter(T.sys3, 'systems', '2026-09-29'));
-  fs.writeFileSync(path.join(postsDir, `${T.sys4}.md`), postFrontmatter(T.sys4, 'systems', '2026-09-30'));
+  // Dated in 2099 so they always outrank the real SYSTEMS transmissions this build also
+  // sees; dated in the present, the first newer real post pushed sys2 out of the latest 3.
+  fs.writeFileSync(path.join(postsDir, `${T.sys1}.md`), postFrontmatter(T.sys1, 'systems', '2099-09-27'));
+  fs.writeFileSync(path.join(postsDir, `${T.sys2}.md`), postFrontmatter(T.sys2, 'systems', '2099-09-28'));
+  fs.writeFileSync(path.join(postsDir, `${T.sys3}.md`), postFrontmatter(T.sys3, 'systems', '2099-09-29'));
+  fs.writeFileSync(path.join(postsDir, `${T.sys4}.md`), postFrontmatter(T.sys4, 'systems', '2099-09-30'));
 }
 
 let shipped;
