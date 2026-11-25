@@ -283,7 +283,14 @@ test(
       await gotoKit(page);
       await page.click('[data-preset="station"]');
       await page.waitForSelector('.kit-orbit-row');
-      await page.evaluate(() => document.querySelector('[data-print]').click());
+      // Stub window.print first: the button's real print() starts a print job that
+      // can still be running when page.pdf() below asks for its own, and Chrome then
+      // refuses with "Page is already being printed". Only the sheet the click
+      // builds matters here, and page.pdf() is the print.
+      await page.evaluate(() => {
+        window.print = () => {};
+        document.querySelector('[data-print]').click();
+      });
       // The print sheet is built into [data-print-sheet] synchronously on click
       // (it only ever becomes visually visible under @media print — its `hidden`
       // DOM attribute is never removed), so wait for its content instead.
